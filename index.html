@@ -380,6 +380,9 @@ canvas{display:block;}
   <button class="hud-btn" onclick="zoomOut()">🔍-</button>
   <button class="hud-btn" onclick="openLoan()" style="color:#fbbf24;border-color:#fbbf24">🏦 贷款</button>
   <button class="hud-btn" id="music-btn" onclick="toggleMusic()">🎵 音乐</button>
+  <button class="hud-btn" id="sfx-btn" onclick="toggleSfx()" style="color:#34d399;border-color:#34d399">🔊 音效</button>
+  <input type="range" id="sfx-vol" min="0" max="100" value="60" oninput="setSfxVol(this.value)"
+    style="width:54px;height:18px;vertical-align:middle;accent-color:#34d399;cursor:pointer;" title="音效音量">
   <button class="hud-btn" onclick="saveGame()" style="color:#34d399;border-color:#34d399">💾 存档</button>
   <button class="hud-btn" onclick="loadGame()" style="color:#60a5fa;border-color:#60a5fa">📂 读档</button>
   <span id="h-loan" style="font-size:9px;color:#f87171;margin-left:4px;white-space:nowrap;"></span>
@@ -539,6 +542,9 @@ canvas{display:block;}
       <button class="mact" onclick="openLoan()" style="color:#fbbf24">🏦 贷款</button>
       <button class="mact" onclick="saveGame()" style="color:#34d399">💾 存档</button>
       <button class="mact" onclick="loadGame()" style="color:#60a5fa">📂 读档</button>
+      <button class="mact" id="msfx-btn" onclick="toggleSfx()" style="color:#34d399">🔊</button>
+      <input type="range" id="msfx-vol" min="0" max="100" value="60" oninput="setSfxVol(this.value)"
+        style="width:60px;height:20px;vertical-align:middle;accent-color:#34d399;cursor:pointer;">
     </div>
   </div>
 
@@ -1125,6 +1131,7 @@ function placeRoom(c,r){
   G.rooms.push({id,type:t,c,r,w:d.w,h:d.h,staffIds:[],queue:[],busy:false,timer:0,totalTreated:0,slots:[]});
   markFloorDirty();
   G.money-=d.cost;
+  sfxBuild();
   spawnParticles(c*T+d.w*T/2,r*T+d.h*T/2,'#4ade80',12);
   notify(`✅ 建造了${d.name}！`,'g');
   autoAssignStaff();
@@ -1246,6 +1253,7 @@ function spawnGhost(x, y, name, appearance){
     alpha: 0, // fade in
   });
   spawnParticles(x, y, '#a78bfa', 10);
+  sfxGhost();
 }
 
 function tickGhost(g, dt){
@@ -1369,6 +1377,7 @@ function hire(type){
     notify(`✅ 雇用了清洁工${name}！`,'g');
   }
   G.staff.push(s);
+  sfxHire();
   refreshList(); refreshStaffPanel();
 }
 
@@ -1488,6 +1497,7 @@ function tickJanitor(st,dt){
           st.exp=(st.exp||0)+8;
         }
       }
+      sfxClean();
       st.jstate='idle';st.jtarget=null;
     }
   }
@@ -1526,6 +1536,7 @@ function spawnPatient(diff=1){
   };
   if(p.emergency) p.patience*=0.5;
   G.patients.push(p);
+  if(isVip) setTimeout(sfxVipCure,0); else setTimeout(sfxArrive,0);
   assignNext(p);
 }
 
@@ -1651,6 +1662,7 @@ function assignNext(p,fromRm){
       spawnHearts(p.x,p.y);
       if(p.vip) spawnFloat(p.x,p.y-28,'👑 +声誉5','#ffd700');
       notify(p.vip?`👑 VIP ${p.name}治愈！+$${pay} +声誉5！`:`🎉 ${p.name}《${p.disease.name}》治愈！+$${pay}`,'g');
+      p.vip?sfxVipCure():sfxCure();
       if(fromRm) gainExp(fromRm,15);
       checkGoal();
     } else if(res.outcome==='death'){
@@ -1658,6 +1670,7 @@ function assignNext(p,fromRm){
       spawnFloat(p.x,p.y,'💀 不治身亡 -3声誉','#ef4444');
       spawnParticles(p.x,p.y,'#ef4444',12);
       notify(`💀 ${p.name}不治身亡！变成幽灵游荡！`,'r');
+      sfxDeath();
       spawnDirt(p.x,p.y); spawnDirt(p.x,p.y);
       // Spawn ghost
       spawnGhost(p.x, p.y, p.name, p.appearance);
@@ -1768,7 +1781,7 @@ function tickP(p,dt){
         if(rm.type==='toilet'){
           rm.useCount=(rm.useCount||0)+1;
           if(rm.useCount>=8&&!rm.clogged){
-            rm.clogged=true;
+            rm.clogged=true; sfxClog();
             spawnFloat(rm.c*T+rm.w*T/2,rm.r*T,'🚫 卫生间堵了！','#ef4444');
             notify(`🚽 卫生间堵塞！需要清洁工清理！`,'r');
           }
@@ -1800,6 +1813,7 @@ function angryleave(p){
   G.rep=Math.max(0,G.rep-2);
   spawnFloat(p.x,p.y,'😤-2声誉','#f59e0b');
   notify(`😤 ${p.name}不耐烦离开！声誉-2`,'y');
+  sfxAngry();
 }
 
 // 员工离岗后，将排队病人重新分配到同类其他房间
@@ -1886,6 +1900,7 @@ function triggerEvent(){
   pendingEvent=ev;
   document.getElementById('ep-title').textContent=ev.title;
   document.getElementById('ep-body').textContent=ev.body;
+  sfxEvent();
   document.getElementById('event-pop').style.display='block';
 }
 function closeEvent(){
@@ -2026,8 +2041,8 @@ function updateCorrInteraction(p,dt){
     ia.timer-=dt;
     if(ia.timer<=0){
       ia.obj._inUse=false;
-      if(ia.type==='vending') spawnFloat(p.x,p.y-10,'😋 好喝！','#fbbf24');
-      else spawnFloat(p.x,p.y-10,'🎮 真好玩！','#a78bfa');
+      if(ia.type==='vending'){spawnFloat(p.x,p.y-10,'😋 好喝！','#fbbf24');sfxVending();}
+      else{spawnFloat(p.x,p.y-10,'🎮 真好玩！','#a78bfa');sfxArcade();}
       p.tx=ia.ox; p.ty=ia.oy;
       delete p._corrAnim;
     }
@@ -2959,6 +2974,7 @@ function checkLevelWin(){
     if(def.id>=10){nextBtn.style.display='none';}
     else{nextBtn.style.display='';nextBtn.textContent=`下一关 (第${def.id+1}关) →`;}
     document.getElementById('level-win').style.display='flex';
+    sfxLevelWin();
     spawnParticles(COLS*T/2,ROWS*T/2,'#ffd700',40);
     notify(`🏆 关卡完成！获得${stars}星！`,'p');
   }
@@ -3018,6 +3034,7 @@ function loop(ts){
     }).length;
     if(vendingCount>0&&G.vendorTimer>=800){
       G.vendorTimer=0;const income=vendingCount*30;G.money+=income;
+      sfxMoney();
       spawnFloat(COLS*T*0.6,ROWS*T*0.5,`+$${income} 自动贩卖机`,'#ffd700');
     }
 
@@ -3135,7 +3152,7 @@ function loop(ts){
     if(G.salaryTimer>=SAL_IV){
       G.salaryTimer=0;
       const tot=G.staff.reduce((s,st)=>s+staffSalary(st),0);
-      if(tot>0){G.money-=tot;spawnFloat(COLS*T/2,80,'-$'+tot.toLocaleString()+' 月薪','#f59e0b');}
+      if(tot>0){G.money-=tot;spawnFloat(COLS*T/2,80,'-$'+tot.toLocaleString()+' 月薪','#f59e0b');sfxSalary();}
       // Loan repayments
       let loanPay=0;
       G.loans=G.loans.filter(l=>{
@@ -3698,6 +3715,7 @@ function takeLoan(amount,monthly,months){
   G._loanWarnShown=false; // reset so warning can trigger again if they fall low again
   G.money+=amount;
   G.loans.push({monthly,remaining:months});
+  sfxLoan();
   notify(`🏦 贷款$${amount.toLocaleString()}到账！每月还$${monthly}，共${months}月`,'y');
   spawnFloat(COLS*T/2,ROWS*T*0.3,`+$${amount.toLocaleString()} 贷款`,'#fbbf24');
   updateLoanHUD();
@@ -3868,6 +3886,135 @@ function scheduleMusicBar(){
   const totalDur=MELODY.reduce((s,[,d])=>s+d,0)*beat*1000;
   _musicTimeout=setTimeout(scheduleMusicBar,totalDur-100);
 }
+// ══════════════════════════════════════════════════════════
+// SOUND EFFECTS
+// ══════════════════════════════════════════════════════════
+let _sfxOn=true, _sfxVol=0.6;
+
+function setSfxVol(v){
+  _sfxVol=v/100;
+  document.getElementById('sfx-vol').value=v;
+  const m=document.getElementById('msfx-vol');if(m)m.value=v;
+}
+function toggleSfx(){
+  _sfxOn=!_sfxOn;
+  const label=_sfxOn?'🔊 音效':'🔇 音效';
+  const mlabel=_sfxOn?'🔊':'🔇';
+  document.getElementById('sfx-btn').textContent=label;
+  const m=document.getElementById('msfx-btn');if(m)m.textContent=mlabel;
+}
+
+function _sfx(fn){
+  if(!_sfxOn||_sfxVol<=0) return;
+  try{
+    initAudio();
+    if(_audioCtx.state==='suspended') _audioCtx.resume();
+    fn(_audioCtx, _audioCtx.currentTime);
+  }catch(e){}
+}
+function _osc(ctx,freq,t,dur,type,vol,freqEnd){
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.type=type||'sine';
+  o.frequency.setValueAtTime(freq, t);
+  if(freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, t+dur);
+  const v=Math.max(0.001, vol*_sfxVol);
+  g.gain.setValueAtTime(0.001, t);
+  g.gain.linearRampToValueAtTime(v, t+0.015);
+  g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  o.start(t); o.stop(t+dur+0.05);
+}
+
+// 病人到达 — 轻快三音上升
+function sfxArrive(){_sfx((ctx,t)=>{
+  [[523,0],[659,0.1],[784,0.2]].forEach(([f,d])=>_osc(ctx,f,t+d,0.18,'triangle',0.18));
+});}
+// 治愈成功 — 欢快四音上升+收尾
+function sfxCure(){_sfx((ctx,t)=>{
+  [[523,0],[659,0.09],[784,0.18],[1047,0.27]].forEach(([f,d])=>_osc(ctx,f,t+d,0.22,'triangle',0.22));
+  _osc(ctx,1047,t+0.5,0.4,'sine',0.14);
+});}
+// VIP治愈 — 皇家小号风格
+function sfxVipCure(){_sfx((ctx,t)=>{
+  [[523,0],[659,0.07],[784,0.14],[1047,0.21],[1319,0.28],[1047,0.38],[1319,0.48]].forEach(([f,d])=>_osc(ctx,f,t+d,0.18,'square',0.16));
+});}
+// 病人死亡 — 搞笑悲伤低鸣
+function sfxDeath(){_sfx((ctx,t)=>{
+  _osc(ctx,350,t,0.5,'sawtooth',0.2,120);
+  _osc(ctx,175,t+0.4,0.5,'sine',0.15,90);
+});}
+// 病人生气离开 — 卡通"哇哦哦"
+function sfxAngry(){_sfx((ctx,t)=>{
+  [[440,0],[350,0.15],[270,0.3]].forEach(([f,d])=>_osc(ctx,f,t+d,0.18,'square',0.14));
+});}
+// 建造房间 — 咚+闪光
+function sfxBuild(){_sfx((ctx,t)=>{
+  _osc(ctx,90,t,0.25,'sine',0.45,40);
+  [[1200,0.06],[1500,0.11],[1800,0.16]].forEach(([f,d])=>_osc(ctx,f,t+d,0.1,'triangle',0.13));
+});}
+// 雇用员工 — 叮咚欢迎
+function sfxHire(){_sfx((ctx,t)=>{
+  _osc(ctx,880,t,0.14,'triangle',0.22);
+  _osc(ctx,1100,t+0.12,0.22,'triangle',0.2);
+  _osc(ctx,1320,t+0.26,0.3,'triangle',0.18);
+});}
+// 收到金钱 — 硬币叮
+function sfxMoney(){_sfx((ctx,t)=>{
+  _osc(ctx,1047,t,0.08,'triangle',0.28);
+  _osc(ctx,1568,t+0.06,0.14,'triangle',0.2);
+});}
+// 付工资 — 收银机声
+function sfxSalary(){_sfx((ctx,t)=>{
+  _osc(ctx,400,t,0.08,'sine',0.18,600);
+  _osc(ctx,900,t+0.07,0.07,'triangle',0.12);
+});}
+// 幽灵出现 — 诡异下滑
+function sfxGhost(){_sfx((ctx,t)=>{
+  _osc(ctx,600,t,0.9,'sine',0.15,180);
+  _osc(ctx,400,t+0.3,0.7,'sine',0.1,200);
+});}
+// 清洁工打扫 — 嚓嚓擦地
+function sfxClean(){_sfx((ctx,t)=>{
+  for(let i=0;i<3;i++) _osc(ctx,180+Math.random()*120,t+i*0.07,0.06,'sawtooth',0.1);
+});}
+// 卫生间堵塞 — 搞笑咕噜声
+function sfxClog(){_sfx((ctx,t)=>{
+  _osc(ctx,120,t,0.35,'sine',0.3,55);
+  _osc(ctx,90,t+0.3,0.45,'sine',0.25,40);
+  _osc(ctx,150,t+0.65,0.3,'sine',0.2,60);
+});}
+// 游戏机使用 — 8-bit音效
+function sfxArcade(){_sfx((ctx,t)=>{
+  [[800,0],[1000,0.05],[700,0.1],[1200,0.15],[900,0.2]].forEach(([f,d])=>_osc(ctx,f,t+d,0.05,'square',0.12));
+});}
+// 自动贩卖机 — 机械掉落+咀嚼声
+function sfxVending(){_sfx((ctx,t)=>{
+  _osc(ctx,500,t,0.12,'sine',0.2,200);
+  _osc(ctx,800,t+0.18,0.1,'triangle',0.15);
+  _osc(ctx,300,t+0.32,0.08,'sawtooth',0.12);
+});}
+// 关卡完成 — 胜利号角
+function sfxLevelWin(){_sfx((ctx,t)=>{
+  [[523,0],[659,0.1],[784,0.2],[1047,0.3],[784,0.45],[1047,0.55],[1319,0.65]].forEach(([f,d])=>_osc(ctx,f,t+d,0.2,'triangle',0.28));
+  _osc(ctx,1319,t+0.9,0.6,'sine',0.22);
+});}
+// 随机事件 — 戏剧性提示音
+function sfxEvent(){_sfx((ctx,t)=>{
+  _osc(ctx,220,t,0.2,'sawtooth',0.2);
+  _osc(ctx,277,t+0.15,0.2,'sawtooth',0.18);
+  _osc(ctx,220,t+0.3,0.35,'sawtooth',0.22,150);
+});}
+// 贷款 — 银行叮声
+function sfxLoan(){_sfx((ctx,t)=>{
+  _osc(ctx,440,t,0.15,'sine',0.2);
+  _osc(ctx,554,t+0.14,0.15,'sine',0.18);
+  _osc(ctx,659,t+0.28,0.3,'sine',0.2);
+});}
+// 按钮点击 — 轻柔咔哒
+function sfxClick(){_sfx((ctx,t)=>{
+  _osc(ctx,800,t,0.04,'sine',0.12);
+});}
+
 function toggleMusic(){
   initAudio();
   _musicOn=!_musicOn;
