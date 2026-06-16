@@ -137,10 +137,10 @@ canvas{display:block;}
 }
 .pop-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(233,69,96,0.5);}
 
-#pause-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;z-index:90;}
-#pause-box{text-align:center;}
-#pause-box h2{font-size:52px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,0.6);}
-#pause-box p{color:#87ceeb;font-size:14px;margin-top:10px;opacity:0.7;}
+#pause-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.35);align-items:center;justify-content:center;z-index:90;pointer-events:none;}
+#pause-box{text-align:center;pointer-events:auto;}
+#pause-box h2{font-size:48px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,0.6);}
+#pause-box p{color:#87ceeb;font-size:13px;margin-top:8px;opacity:0.7;}
 
 #goal-banner{
   display:none;position:absolute;top:0;left:0;right:0;
@@ -285,6 +285,13 @@ canvas{display:block;}
       <button class="pop-btn" style="background:#374151;" onclick="document.getElementById('fire-pop').style.display='none'">取消</button>
     </div>
     <div id="cam-info">滚轮缩放 | 拖拽移动</div>
+    <div id="place-confirm" style="display:none;position:absolute;z-index:160;display:none;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;">
+      <div style="font-size:11px;color:#22d3ee;background:rgba(0,0,0,0.7);padding:3px 10px;border-radius:12px;">📦 放置在此？</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="confirmPlacement()" style="padding:11px 22px;border-radius:10px;background:#22c55e;color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(34,197,94,0.4);">✓ 确认</button>
+        <button onclick="cancelPlacement()" style="padding:11px 18px;border-radius:10px;background:#374151;color:#ccc;border:none;font-size:15px;cursor:pointer;">✕</button>
+      </div>
+    </div>
     <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;color:#1e3a5f;pointer-events:none;white-space:nowrap;z-index:10;">© 2025 JenniferLi2022 版权所有</div>
     <!-- Room action panel -->
     <div id="room-action" style="display:none;position:absolute;z-index:120;pointer-events:auto;
@@ -694,7 +701,26 @@ function startMoveRoom(){
   G.selectedRoomId=null;
   document.getElementById('room-action').style.display='none';
   buildPause(true);
-  notify('📦 点击空白处放置房间，右键取消','y');
+  notify('📦 点击/拖动到目标位置放置','y');
+}
+function showPlaceConfirm(sx,sy){
+  const el=document.getElementById('place-confirm');
+  const pw=160,ph=80;
+  let left=sx-pw/2, top=sy-ph-20;
+  left=Math.max(4,Math.min(left,cv.width-pw-4));
+  top=Math.max(4,top);
+  el.style.left=left+'px'; el.style.top=top+'px';
+  el.style.display='flex';
+}
+function hidePlaceConfirm(){document.getElementById('place-confirm').style.display='none';}
+function confirmPlacement(){
+  hidePlaceConfirm();
+  if(G.moveRoomId) placeMoveRoom(G.mx,G.my);
+}
+function cancelPlacement(){
+  hidePlaceConfirm();
+  G.moveRoomId=null;
+  buildPause(false);
 }
 function confirmDeleteRoom(){
   if(!G.selectedRoomId) return;
@@ -2816,6 +2842,8 @@ cv.addEventListener('wheel',e=>{
 
 // ── Touch events (mobile pan + pinch zoom) ──
 let _touches={},_lastPinchDist=0;
+let _lpTimer=null,_lpSX=0,_lpSY=0,_lpDragging=false;
+
 cv.addEventListener('touchstart',e=>{
   e.preventDefault();
   Array.from(e.changedTouches).forEach(t=>_touches[t.identifier]={x:t.clientX,y:t.clientY});
@@ -2823,9 +2851,29 @@ cv.addEventListener('touchstart',e=>{
   if(ids.length===1){
     const t=e.changedTouches[0];
     const rect=cv.getBoundingClientRect();
-    _drag={sx:t.clientX-rect.left,sy:t.clientY-rect.top,cx:CAM.x,cy:CAM.y};
+    const sx=t.clientX-rect.left,sy=t.clientY-rect.top;
+    _lpSX=sx;_lpSY=sy;_lpDragging=false;
+    _drag={sx,sy,cx:CAM.x,cy:CAM.y};
     _dragMoved=false;
+    // Long-press: 480ms hold on a room → drag mode
+    if(!G.mode&&!G.moveRoomId){
+      _lpTimer=setTimeout(()=>{
+        if(!_dragMoved){
+          const w=screenToWorld(_lpSX,_lpSY);
+          const rid=G.grid[Math.floor(w.y/T)]?.[Math.floor(w.x/T)]||0;
+          if(rid){
+            G.moveRoomId=rid; G.selectedRoomId=null;
+            _lpDragging=true; _drag=null;
+            document.getElementById('room-action').style.display='none';
+            buildPause(true);
+            if(navigator.vibrate) navigator.vibrate(40);
+            notify('📦 拖动到目标位置，松手确认','y');
+          }
+        }
+      },480);
+    }
   } else if(ids.length===2){
+    clearTimeout(_lpTimer);_lpTimer=null;
     _drag=null;
     const t1=_touches[ids[0]],t2=_touches[ids[1]];
     _lastPinchDist=Math.hypot(t2.x-t1.x,t2.y-t1.y);
@@ -2837,14 +2885,23 @@ cv.addEventListener('touchmove',e=>{
   Array.from(e.changedTouches).forEach(t=>{if(_touches[t.identifier]) _touches[t.identifier]={x:t.clientX,y:t.clientY};});
   const ids=Object.keys(_touches);
   const rect=cv.getBoundingClientRect();
-  if(ids.length===1&&_drag){
+  if(ids.length===1){
     const t=e.changedTouches[0];
     const sx=t.clientX-rect.left,sy=t.clientY-rect.top;
-    const dx=sx-_drag.sx,dy=sy-_drag.sy;
-    if(!_dragMoved&&(Math.abs(dx)>5||Math.abs(dy)>5)) _dragMoved=true;
-    if(_dragMoved){CAM.x=_drag.cx-dx/CAM.scale;CAM.y=_drag.cy-dy/CAM.scale;clampCam();}
-    // Update tile hover
-    const w=screenToWorld(sx,sy);G.mx=Math.floor(w.x/T);G.my=Math.floor(w.y/T);
+    // Cancel long-press if moved too early
+    if(_lpTimer&&(Math.abs(sx-_lpSX)>8||Math.abs(sy-_lpSY)>8)){
+      clearTimeout(_lpTimer);_lpTimer=null;
+    }
+    if(_lpDragging){
+      // Room follows finger
+      const w=screenToWorld(sx,sy);
+      G.mx=Math.floor(w.x/T);G.my=Math.floor(w.y/T);
+    } else if(_drag){
+      const dx=sx-_drag.sx,dy=sy-_drag.sy;
+      if(!_dragMoved&&(Math.abs(dx)>5||Math.abs(dy)>5)) _dragMoved=true;
+      if(_dragMoved){CAM.x=_drag.cx-dx/CAM.scale;CAM.y=_drag.cy-dy/CAM.scale;clampCam();}
+      const w=screenToWorld(sx,sy);G.mx=Math.floor(w.x/T);G.my=Math.floor(w.y/T);
+    }
   } else if(ids.length===2){
     const t1=_touches[ids[0]],t2=_touches[ids[1]];
     const dist=Math.hypot(t2.x-t1.x,t2.y-t1.y);
@@ -2858,31 +2915,39 @@ cv.addEventListener('touchmove',e=>{
 
 cv.addEventListener('touchend',e=>{
   e.preventDefault();
+  clearTimeout(_lpTimer);_lpTimer=null;
   Array.from(e.changedTouches).forEach(t=>delete _touches[t.identifier]);
   const ids=Object.keys(_touches);
   if(ids.length===0){
+    const t=e.changedTouches[0];
+    const rect=cv.getBoundingClientRect();
+    const sx=t.clientX-rect.left,sy=t.clientY-rect.top;
+    if(_lpDragging){
+      // Show confirm button at finger lift position
+      _lpDragging=false;
+      showPlaceConfirm(sx,sy);
+      _drag=null;_dragMoved=false;_lastPinchDist=0;
+      garea.classList.remove('panning');
+      return;
+    }
     if(!_dragMoved&&!G.over){
-      const t=e.changedTouches[0];
-      const rect=cv.getBoundingClientRect();
-      const sx=t.clientX-rect.left,sy=t.clientY-rect.top;
       const w=screenToWorld(sx,sy);
       const wc=Math.floor(w.x/T),wr=Math.floor(w.y/T);
       if(G.moveRoomId){
-        placeMoveRoom(wc,wr);
+        // Tap-to-place mode (from desktop "移动" button): show confirm
+        showPlaceConfirm(sx,sy);
       } else if(G.mode){
         placeRoom(wc,wr);
       } else if(G.selectedStaffId){
-        const clickedRoomId=G.grid[wr]?.[wc]||0;
-        if(clickedRoomId) assignStaffToRoom(G.selectedStaffId,clickedRoomId);
+        const rid=G.grid[wr]?.[wc]||0;
+        if(rid) assignStaffToRoom(G.selectedStaffId,rid);
         G.selectedStaffId=null;refreshStaffPanel();
       } else {
-        const clickedRoomId=G.grid[wr]?.[wc]||0;
-        if(clickedRoomId){
-          if(G.selectedRoomId===clickedRoomId) closeRoomAction();
-          else selectRoom(clickedRoomId);
-        } else {
-          closeRoomAction();
-        }
+        const rid=G.grid[wr]?.[wc]||0;
+        if(rid){
+          if(G.selectedRoomId===rid) closeRoomAction();
+          else selectRoom(rid);
+        } else { closeRoomAction(); }
       }
     }
     _drag=null;_dragMoved=false;_lastPinchDist=0;
