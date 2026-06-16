@@ -432,16 +432,16 @@ const COLS=72, ROWS=42;
 let T = window.innerWidth < 640 ? 20 : 28;
 
 const RDEFS={
-  reception:  {name:'挂号台',    icon:'🪑',bg:'#0b3320',bd:'#22c55e',w:4,h:3, cost:2000, need:'receptionist',treatTime:60,  maxStaff:2},
-  gp:         {name:'全科诊室',  icon:'🩺',bg:'#0b1f40',bd:'#3b82f6',w:5,h:3, cost:5000, need:'doctor',      treatTime:120, maxStaff:1},
-  pharmacy:   {name:'药房',      icon:'💊',bg:'#3d1000',bd:'#f97316',w:4,h:3, cost:3000, need:'nurse',       treatTime:80,  maxStaff:1},
-  psychiatric:{name:'心理诊室',  icon:'🧠',bg:'#1d0b40',bd:'#a855f7',w:5,h:3, cost:6000, need:'psychiatrist',treatTime:150, maxStaff:1},
-  ward:       {name:'病房',      icon:'🛏️',bg:'#0b2d40',bd:'#06b6d4',w:6,h:4, cost:6000, need:'nurse',       treatTime:140, maxStaff:3},
-  xray:       {name:'X光室',     icon:'🦴',bg:'#001a2a',bd:'#00d4ff',w:5,h:3, cost:9000, need:'technician',  treatTime:100, maxStaff:1},
-  surgery:    {name:'手术室',    icon:'🔪',bg:'#1a0010',bd:'#ff2d55',w:6,h:4, cost:14000,need:'surgeon',     treatTime:220, maxStaff:2},
-  research:   {name:'研究室',    icon:'🔬',bg:'#1d2000',bd:'#eab308',w:5,h:3, cost:8000, need:'researcher',  treatTime:200, maxStaff:1},
-  breakroom:  {name:'员工休息室',icon:'☕',bg:'#1a1000',bd:'#d97706',w:4,h:3, cost:3000, need:null,          treatTime:0,   maxStaff:0},
-  toilet:     {name:'卫生间',    icon:'🚽',bg:'#1a0a2a',bd:'#9d4edd',w:3,h:2, cost:1500, need:null,          treatTime:25,  maxStaff:0},
+  reception:  {name:'挂号台',    icon:'🪑',bg:'#0b3320',bd:'#22c55e',w:5,h:4, cost:2000, need:'receptionist',treatTime:60,  maxStaff:2},
+  gp:         {name:'全科诊室',  icon:'🩺',bg:'#0b1f40',bd:'#3b82f6',w:6,h:4, cost:5000, need:'doctor',      treatTime:120, maxStaff:1},
+  pharmacy:   {name:'药房',      icon:'💊',bg:'#3d1000',bd:'#f97316',w:5,h:4, cost:3000, need:'nurse',       treatTime:80,  maxStaff:1},
+  psychiatric:{name:'心理诊室',  icon:'🧠',bg:'#1d0b40',bd:'#a855f7',w:6,h:4, cost:6000, need:'psychiatrist',treatTime:150, maxStaff:1},
+  ward:       {name:'病房',      icon:'🛏️',bg:'#0b2d40',bd:'#06b6d4',w:8,h:5, cost:6000, need:'nurse',       treatTime:140, maxStaff:3},
+  xray:       {name:'X光室',     icon:'🦴',bg:'#001a2a',bd:'#00d4ff',w:6,h:4, cost:9000, need:'technician',  treatTime:100, maxStaff:1},
+  surgery:    {name:'手术室',    icon:'🔪',bg:'#1a0010',bd:'#ff2d55',w:8,h:5, cost:14000,need:'surgeon',     treatTime:220, maxStaff:2},
+  research:   {name:'研究室',    icon:'🔬',bg:'#1d2000',bd:'#eab308',w:6,h:4, cost:8000, need:'researcher',  treatTime:200, maxStaff:1},
+  breakroom:  {name:'员工休息室',icon:'☕',bg:'#1a1000',bd:'#d97706',w:5,h:4, cost:3000, need:null,          treatTime:0,   maxStaff:0},
+  toilet:     {name:'卫生间',    icon:'🚽',bg:'#1a0a2a',bd:'#9d4edd',w:3,h:3, cost:1500, need:null,          treatTime:25,  maxStaff:0},
 };
 
 const SNEED={receptionist:'接待员',doctor:'全科医生',psychiatrist:'精神科医生',nurse:'护士',researcher:'研究员',janitor:'清洁工',technician:'X光技师',surgeon:'外科医生'};
@@ -692,6 +692,7 @@ function startMoveRoom(){
   G.moveRoomId=G.selectedRoomId;
   G.selectedRoomId=null;
   document.getElementById('room-action').style.display='none';
+  buildPause(true);
   notify('📦 点击空白处放置房间，右键取消','y');
 }
 function confirmDeleteRoom(){
@@ -756,6 +757,7 @@ function placeMoveRoom(c,r){
     if(p&&(p.state==='wait'||p.state==='treat')){p.tx=(c+d.w/2)*T;p.ty=(r+d.h*0.6)*T;}
   });
   notify(`✅ 「${d.name}」已移动`,'g');
+  buildPause(false);
 }
 
 function switchTab(t){
@@ -798,7 +800,22 @@ function setMode(t){
   if(G.mode){
     document.getElementById('b-'+t)?.classList.add('active');
     document.getElementById('mb-'+t)?.classList.add('active');
+    buildPause(true);
+  } else {
+    buildPause(false);
   }
+}
+// Auto-pause helpers
+let _buildPaused=false;
+function buildPause(on){
+  if(on&&!_paused){_paused=true;_buildPaused=true;_syncPauseUI();}
+  else if(!on&&_buildPaused){_paused=false;_buildPaused=false;_syncPauseUI();}
+}
+function _syncPauseUI(){
+  const lbl=_paused?'▶️ 继续':'⏸️ 暂停';
+  document.getElementById('pause-btn').textContent=lbl;
+  const mb=document.getElementById('mpause-btn');if(mb)mb.textContent=_paused?'▶ 继续':'⏸ 暂停';
+  document.getElementById('pause-overlay').style.display=_paused?'flex':'none';
 }
 function canPlace(c,r,w,h){
   if(c<0||r<0||c+w>COLS||r+h>ROWS) return false;
@@ -819,6 +836,7 @@ function placeRoom(c,r){
   autoAssignStaff();
   refreshList();
   rebuildCorridorObjs();
+  buildPause(false);
 }
 
 function sanitizeBusy(){
@@ -2782,6 +2800,7 @@ cv.addEventListener('contextmenu',e=>{
   G.mode=null; G.selectedStaffId=null;
   G.moveRoomId=null;
   closeRoomAction();
+  buildPause(false);
   document.querySelectorAll('.sbtn[id^="b-"],.mbtn[id^="mb-"]').forEach(b=>b.classList.remove('active'));
   refreshStaffPanel();
 });
@@ -3062,10 +3081,8 @@ function toggleMusic(){
 // ══════════════════════════════════════════════════════════
 function togglePause(){
   _paused=!_paused;
-  const lbl=_paused?'▶️ 继续':'⏸️ 暂停';
-  document.getElementById('pause-btn').textContent=lbl;
-  const mb=document.getElementById('mpause-btn');if(mb) mb.textContent=_paused?'▶ 继续':'⏸ 暂停';
-  document.getElementById('pause-overlay').style.display=_paused?'flex':'none';
+  _buildPaused=false; // manual override clears auto-pause
+  _syncPauseUI();
 }
 function toggleSpeed(){
   G.speed=G.speed===1?3:1;
