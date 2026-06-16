@@ -807,6 +807,7 @@ function switchMobTab(t){
     document.getElementById('mtab-'+t).classList.add('active');
     document.getElementById('mpanel-'+t).classList.add('active');
     bar.classList.add('open');
+    if(t==='staff') refreshStaffPanel();
   }
 }
 function syncMobInfo(){
@@ -2419,19 +2420,6 @@ function draw(){
   // Roaming janitors — draw path line then sprite
   G.staff.filter(s=>s.type==='janitor').forEach(st=>{
     if(st.wx===undefined) return;
-    // Draw path to target
-    if(st.jstate==='going'&&st.jtarget){
-      let tx,ty;
-      if(st.jtarget.type==='dirt'){const d=G.dirts[st.jtarget.idx];if(d){tx=d.x;ty=d.y;}}
-      else if(st.jtarget.type==='ghost'){const g=G.ghosts[st.jtarget.idx];if(g){tx=g.x;ty=g.y;}}
-      else if(st.jtarget.type==='bin'){tx=st.jtarget.obj.x;ty=st.jtarget.obj.y;}
-      else if(st.jtarget.type==='toilet'){const p=rmPx(st.jtarget.rm);tx=p.x;ty=p.y;}
-      if(tx!==undefined){
-        cx.save();cx.setLineDash([4,4]);cx.strokeStyle='rgba(250,204,21,0.55)';cx.lineWidth=1.5;
-        cx.beginPath();cx.moveTo(st.wx,st.wy);cx.lineTo(tx,ty);cx.stroke();
-        cx.setLineDash([]);cx.restore();
-      }
-    }
     drawStaffSprite(st.wx,st.wy,st);
     // Working indicator
     if(st.jstate==='working'){
@@ -3011,19 +2999,26 @@ cv.addEventListener('touchstart',e=>{
     _lpSX=sx;_lpSY=sy;_lpDragging=false;
     _drag={sx,sy,cx:CAM.x,cy:CAM.y};
     _dragMoved=false;
-    // Long-press: 480ms hold on a room → drag mode
+    // Long-press: 480ms → select room (edit panel) or drag if already selected
     if(!G.mode&&!G.moveRoomId){
       _lpTimer=setTimeout(()=>{
         if(!_dragMoved){
           const w=screenToWorld(_lpSX,_lpSY);
           const rid=G.grid[Math.floor(w.y/T)]?.[Math.floor(w.x/T)]||0;
           if(rid){
-            G.moveRoomId=rid; G.selectedRoomId=null;
-            _lpDragging=true; _drag=null;
-            document.getElementById('room-action').style.display='none';
-            buildPause(true);
-            if(navigator.vibrate) navigator.vibrate(40);
-            notify('📦 拖动到目标位置，松手确认','y');
+            if(navigator.vibrate) navigator.vibrate(30);
+            if(G.selectedRoomId===rid){
+              // Second long-press on already-selected room → drag mode
+              G.moveRoomId=rid; G.selectedRoomId=null;
+              _lpDragging=true; _drag=null;
+              document.getElementById('room-action').style.display='none';
+              buildPause(true);
+              if(navigator.vibrate) navigator.vibrate(40);
+              notify('📦 拖动到目标位置，松手确认','y');
+            } else {
+              // First long-press → open edit panel
+              selectRoom(rid);
+            }
           }
         }
       },480);
@@ -3102,11 +3097,8 @@ cv.addEventListener('touchend',e=>{
         if(rid) assignStaffToRoom(G.selectedStaffId,rid);
         G.selectedStaffId=null;refreshStaffPanel();
       } else {
-        const rid=G.grid[wr]?.[wc]||0;
-        if(rid){
-          if(G.selectedRoomId===rid) closeRoomAction();
-          else selectRoom(rid);
-        } else { closeRoomAction(); }
+        // Short tap on canvas: only close existing room panel (long-press opens it)
+        if(G.selectedRoomId) closeRoomAction();
       }
     }
     _drag=null;_dragMoved=false;_lastPinchDist=0;
