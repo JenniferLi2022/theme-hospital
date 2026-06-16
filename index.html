@@ -3917,107 +3917,235 @@ function _sfx(fn){
     fn(_audioCtx, _audioCtx.currentTime);
   }catch(e){}
 }
+// 单个振荡器，支持频率滑动和自定义包络
 function _osc(ctx,freq,t,dur,type,vol,freqEnd){
-  const o=ctx.createOscillator(), g=ctx.createGain();
-  o.connect(g); g.connect(ctx.destination);
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
   o.type=type||'sine';
-  o.frequency.setValueAtTime(freq, t);
-  if(freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, t+dur);
-  const v=Math.max(0.001, vol*_sfxVol);
-  g.gain.setValueAtTime(0.001, t);
-  g.gain.linearRampToValueAtTime(v, t+0.015);
-  g.gain.exponentialRampToValueAtTime(0.001, t+dur);
-  o.start(t); o.stop(t+dur+0.05);
+  o.frequency.setValueAtTime(freq,t);
+  if(freqEnd) o.frequency.exponentialRampToValueAtTime(Math.max(0.001,freqEnd),t+dur);
+  const v=Math.max(0.001,vol*_sfxVol);
+  g.gain.setValueAtTime(0.001,t);
+  g.gain.linearRampToValueAtTime(v,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.start(t);o.stop(t+dur+0.06);
+}
+// 带谐波的钟声（模拟金属铃铛）
+function _bell(ctx,freq,t,dur,vol){
+  const v=Math.max(0.001,vol*_sfxVol);
+  [[1,0.6],[2.756,0.25],[5.405,0.1],[3.375,0.08]].forEach(([ratio,amp])=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.type='sine';o.frequency.value=freq*ratio;
+    g.gain.setValueAtTime(0.001,t);
+    g.gain.linearRampToValueAtTime(v*amp,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.start(t);o.stop(t+dur+0.06);
+  });
+}
+// 白噪声 burst（模拟机械/摩擦/撞击）
+function _noise(ctx,t,dur,vol,loFreq,hiFreq){
+  try{
+    const sr=ctx.sampleRate,len=Math.ceil(sr*dur)+1;
+    const buf=ctx.createBuffer(1,len,sr);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+    const bpf=ctx.createBiquadFilter();
+    bpf.type='bandpass';
+    bpf.frequency.value=(loFreq+hiFreq)/2;
+    bpf.Q.value=Math.max(0.1,(loFreq+hiFreq)/(2*Math.max(1,hiFreq-loFreq)));
+    const g=ctx.createGain();
+    src.connect(bpf);bpf.connect(g);g.connect(ctx.destination);
+    const v=Math.max(0.001,vol*_sfxVol);
+    g.gain.setValueAtTime(v,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    src.start(t);src.stop(t+dur+0.06);
+  }catch(e){}
 }
 
-// 病人到达 — 轻快三音上升
+// ── 病人到达 ── 自动玻璃门嗖声 + 接待台清脆铃声
 function sfxArrive(){_sfx((ctx,t)=>{
-  [[523,0],[659,0.1],[784,0.2]].forEach(([f,d])=>_osc(ctx,f,t+d,0.18,'triangle',0.18));
+  _noise(ctx,t,0.22,0.18,200,900);        // 自动门气流声
+  _bell(ctx,1318,t+0.12,0.9,0.3);         // 接待铃
+  _bell(ctx,1760,t+0.28,0.7,0.15);        // 铃声余韵
 });}
-// 治愈成功 — 欢快四音上升+收尾
+
+// ── 治愈成功 ── 心电图正常嘀嘀 + 胜利和弦
 function sfxCure(){_sfx((ctx,t)=>{
-  [[523,0],[659,0.09],[784,0.18],[1047,0.27]].forEach(([f,d])=>_osc(ctx,f,t+d,0.22,'triangle',0.22));
-  _osc(ctx,1047,t+0.5,0.4,'sine',0.14);
+  // 心电监测嘀声 ×2（清晰正弦短脉冲）
+  _osc(ctx,880,t,0.1,'sine',0.32);
+  _osc(ctx,880,t+0.2,0.1,'sine',0.32);
+  // 胜利上升和弦（钢琴风格）
+  _bell(ctx,523,t+0.45,0.5,0.22);
+  _bell(ctx,659,t+0.58,0.5,0.2);
+  _bell(ctx,784,t+0.71,0.5,0.22);
+  _bell(ctx,1047,t+0.84,0.8,0.28);
 });}
-// VIP治愈 — 皇家小号风格
+
+// ── VIP治愈 ── 豪华版：双心跳 + 盛大号角 + 硬币雨
 function sfxVipCure(){_sfx((ctx,t)=>{
-  [[523,0],[659,0.07],[784,0.14],[1047,0.21],[1319,0.28],[1047,0.38],[1319,0.48]].forEach(([f,d])=>_osc(ctx,f,t+d,0.18,'square',0.16));
+  _osc(ctx,880,t,0.1,'sine',0.35);
+  _osc(ctx,880,t+0.18,0.1,'sine',0.35);
+  [[523,0.4],[659,0.54],[784,0.67],[988,0.8],[1047,0.93],[1319,1.06],[1047,1.22],[1319,1.35],[1568,1.48]].forEach(([f,d])=>{
+    _bell(ctx,f,t+d,0.3,0.28);
+    _osc(ctx,f*1.5,t+d,0.15,'sine',0.06); // 高次谐波增加辉煌感
+  });
+  for(let i=0;i<6;i++) _bell(ctx,1200+Math.random()*600,t+1.7+i*0.05,0.15,0.12);
 });}
-// 病人死亡 — 搞笑悲伤低鸣
+
+// ── 病人死亡 ── 心跳减慢 → 平线哔声
 function sfxDeath(){_sfx((ctx,t)=>{
-  _osc(ctx,350,t,0.5,'sawtooth',0.2,120);
-  _osc(ctx,175,t+0.4,0.5,'sine',0.15,90);
+  // 最后两次心跳（越来越弱）
+  _osc(ctx,880,t,0.12,'sine',0.28);
+  _osc(ctx,880,t+0.32,0.12,'sine',0.18);
+  // 平线持续音（心电图flatline）
+  _osc(ctx,520,t+0.7,1.8,'sine',0.28);
+  // 低沉的厚重感
+  _osc(ctx,130,t+0.7,1.5,'sine',0.12);
 });}
-// 病人生气离开 — 卡通"哇哦哦"
+
+// ── 病人愤怒离开 ── 卡通降调 + 关门声
 function sfxAngry(){_sfx((ctx,t)=>{
-  [[440,0],[350,0.15],[270,0.3]].forEach(([f,d])=>_osc(ctx,f,t+d,0.18,'square',0.14));
+  _osc(ctx,480,t,0.18,'sawtooth',0.18,350);
+  _osc(ctx,350,t+0.2,0.18,'sawtooth',0.16,240);
+  _osc(ctx,240,t+0.4,0.22,'sawtooth',0.2,160);
+  // 砰——门关上
+  _noise(ctx,t+0.65,0.08,0.35,60,350);
+  _osc(ctx,80,t+0.65,0.12,'sine',0.3,40);
 });}
-// 建造房间 — 咚+闪光
+
+// ── 建造房间 ── 电钻嗡嗡 + 锤子咚咚 + 完工叮
 function sfxBuild(){_sfx((ctx,t)=>{
-  _osc(ctx,90,t,0.25,'sine',0.45,40);
-  [[1200,0.06],[1500,0.11],[1800,0.16]].forEach(([f,d])=>_osc(ctx,f,t+d,0.1,'triangle',0.13));
+  // 电钻声（调制噪声模拟）
+  _osc(ctx,150,t,0.3,'sawtooth',0.2,155);
+  _noise(ctx,t,0.3,0.18,400,2500);
+  // 两下锤击
+  _noise(ctx,t+0.1,0.1,0.3,60,400);
+  _osc(ctx,85,t+0.1,0.1,'sine',0.35,40);
+  _noise(ctx,t+0.28,0.1,0.3,60,400);
+  _osc(ctx,85,t+0.28,0.1,'sine',0.3,40);
+  // 完工清脆叮声
+  _bell(ctx,880,t+0.55,0.4,0.28);
+  _bell(ctx,1108,t+0.68,0.5,0.22);
 });}
-// 雇用员工 — 叮咚欢迎
+
+// ── 雇用员工 ── 医院广播叮咚 + 欢迎升调
 function sfxHire(){_sfx((ctx,t)=>{
-  _osc(ctx,880,t,0.14,'triangle',0.22);
-  _osc(ctx,1100,t+0.12,0.22,'triangle',0.2);
-  _osc(ctx,1320,t+0.26,0.3,'triangle',0.18);
+  // 广播叮咚（类医院PA系统）
+  _bell(ctx,880,t,0.5,0.32);
+  _bell(ctx,1108,t+0.22,0.5,0.28);
+  // 欢快上行
+  _bell(ctx,659,t+0.55,0.3,0.2);
+  _bell(ctx,784,t+0.68,0.3,0.18);
+  _bell(ctx,1047,t+0.81,0.55,0.24);
 });}
-// 收到金钱 — 硬币叮
+
+// ── 收到金钱 ── 两枚硬币叮声
 function sfxMoney(){_sfx((ctx,t)=>{
-  _osc(ctx,1047,t,0.08,'triangle',0.28);
-  _osc(ctx,1568,t+0.06,0.14,'triangle',0.2);
+  _bell(ctx,1568,t,0.25,0.28);
+  _bell(ctx,1318,t+0.08,0.3,0.2);
 });}
-// 付工资 — 收银机声
+
+// ── 发工资 ── 收银机开箱 + 硬币哗哗
 function sfxSalary(){_sfx((ctx,t)=>{
-  _osc(ctx,400,t,0.08,'sine',0.18,600);
-  _osc(ctx,900,t+0.07,0.07,'triangle',0.12);
+  // 铃声提示
+  _bell(ctx,1047,t,0.2,0.28);
+  _bell(ctx,1319,t+0.1,0.2,0.22);
+  // 收银机机械声
+  _noise(ctx,t+0.18,0.14,0.28,150,1200);
+  _osc(ctx,90,t+0.18,0.1,'sine',0.3,50);
+  // 硬币滚落
+  for(let i=0;i<7;i++) _bell(ctx,1100+Math.random()*800,t+0.32+i*0.045,0.12,0.14);
 });}
-// 幽灵出现 — 诡异下滑
+
+// ── 幽灵出现 ── 颤音低鸣 + 高频飘逸
 function sfxGhost(){_sfx((ctx,t)=>{
-  _osc(ctx,600,t,0.9,'sine',0.15,180);
-  _osc(ctx,400,t+0.3,0.7,'sine',0.1,200);
+  // 轻微失谐产生颤音效果
+  _osc(ctx,220,t,1.4,'sine',0.2,175);
+  _osc(ctx,224,t,1.4,'sine',0.12,179);  // 微频差 → 自然颤音
+  _osc(ctx,110,t+0.5,0.9,'sine',0.14,85);
+  // 高频鬼气
+  _osc(ctx,1200,t+0.2,0.6,'sine',0.06,600);
 });}
-// 清洁工打扫 — 嚓嚓擦地
+
+// ── 清洁工完成清扫 ── 拖把嘎吱 + 清洁完成叮
 function sfxClean(){_sfx((ctx,t)=>{
-  for(let i=0;i<3;i++) _osc(ctx,180+Math.random()*120,t+i*0.07,0.06,'sawtooth',0.1);
+  // 拖把摩擦地板声
+  _noise(ctx,t,0.08,0.18,250,2000);
+  _noise(ctx,t+0.12,0.08,0.15,250,2000);
+  _noise(ctx,t+0.24,0.08,0.15,250,2000);
+  // 清洁完毕清脆音
+  _bell(ctx,1047,t+0.4,0.4,0.22);
+  _bell(ctx,1319,t+0.52,0.5,0.18);
 });}
-// 卫生间堵塞 — 搞笑咕噜声
+
+// ── 厕所堵塞 ── 低频咕噜 + 水泡声
 function sfxClog(){_sfx((ctx,t)=>{
-  _osc(ctx,120,t,0.35,'sine',0.3,55);
-  _osc(ctx,90,t+0.3,0.45,'sine',0.25,40);
-  _osc(ctx,150,t+0.65,0.3,'sine',0.2,60);
+  _osc(ctx,75,t,0.4,'sine',0.32,38);
+  _osc(ctx,55,t+0.35,0.45,'sine',0.28,32);
+  _osc(ctx,90,t+0.72,0.35,'sine',0.25,45);
+  // 水泡噗噗
+  _noise(ctx,t+0.12,0.08,0.12,600,3000);
+  _noise(ctx,t+0.48,0.08,0.1,600,3000);
+  _noise(ctx,t+0.8,0.08,0.1,600,3000);
 });}
-// 游戏机使用 — 8-bit音效
+
+// ── 游戏机 ── 8-bit电子音效序列
 function sfxArcade(){_sfx((ctx,t)=>{
-  [[800,0],[1000,0.05],[700,0.1],[1200,0.15],[900,0.2]].forEach(([f,d])=>_osc(ctx,f,t+d,0.05,'square',0.12));
+  [[880,0],[1100,0.06],[660,0.12],[1320,0.18],[990,0.24],[1540,0.3],[1100,0.36]].forEach(([f,d])=>{
+    _osc(ctx,f,t+d,0.055,'square',0.14);
+    _osc(ctx,f*0.5,t+d,0.055,'square',0.05);
+  });
 });}
-// 自动贩卖机 — 机械掉落+咀嚼声
+
+// ── 自动贩卖机 ── 马达嗡嗡 + 物品掉落 + 撞击
 function sfxVending(){_sfx((ctx,t)=>{
-  _osc(ctx,500,t,0.12,'sine',0.2,200);
-  _osc(ctx,800,t+0.18,0.1,'triangle',0.15);
-  _osc(ctx,300,t+0.32,0.08,'sawtooth',0.12);
+  // 马达运转声
+  _osc(ctx,115,t,0.5,'sawtooth',0.16,108);
+  _noise(ctx,t,0.4,0.1,80,500);
+  // 物品掉落重击
+  _noise(ctx,t+0.52,0.18,0.4,50,350);
+  _osc(ctx,180,t+0.52,0.14,'sine',0.28,70);
 });}
-// 关卡完成 — 胜利号角
+
+// ── 关卡胜利 ── 医院PA叮咚 × 2 + 胜利旋律
 function sfxLevelWin(){_sfx((ctx,t)=>{
-  [[523,0],[659,0.1],[784,0.2],[1047,0.3],[784,0.45],[1047,0.55],[1319,0.65]].forEach(([f,d])=>_osc(ctx,f,t+d,0.2,'triangle',0.28));
-  _osc(ctx,1319,t+0.9,0.6,'sine',0.22);
+  // PA叮咚
+  _bell(ctx,880,t,0.4,0.38);
+  _bell(ctx,1108,t+0.25,0.4,0.32);
+  _bell(ctx,880,t+0.5,0.4,0.32);
+  _bell(ctx,1319,t+0.75,0.55,0.38);
+  // 胜利旋律（欢快上行）
+  [[523,1.1],[659,1.25],[784,1.4],[880,1.55],[1047,1.7],[784,1.88],[1047,2.0],[1319,2.12],[1047,2.3],[1319,2.44],[1568,2.58]].forEach(([f,d])=>{
+    _bell(ctx,f,t+d,0.28,0.3);
+  });
+  // 结尾硬币雨
+  for(let i=0;i<10;i++) _bell(ctx,1000+Math.random()*700,t+2.8+i*0.06,0.2,0.12);
 });}
-// 随机事件 — 戏剧性提示音
+
+// ── 随机事件 ── 经典医院PA广播叮咚四音
 function sfxEvent(){_sfx((ctx,t)=>{
-  _osc(ctx,220,t,0.2,'sawtooth',0.2);
-  _osc(ctx,277,t+0.15,0.2,'sawtooth',0.18);
-  _osc(ctx,220,t+0.3,0.35,'sawtooth',0.22,150);
+  // 医院广播四音节奏（高-低-高-低）
+  _bell(ctx,880,t,0.4,0.42);
+  _bell(ctx,660,t+0.28,0.4,0.36);
+  _bell(ctx,880,t+0.56,0.4,0.38);
+  _bell(ctx,440,t+0.84,0.6,0.36);
 });}
-// 贷款 — 银行叮声
+
+// ── 贷款到账 ── 庄重银行三叮 + 大量硬币
 function sfxLoan(){_sfx((ctx,t)=>{
-  _osc(ctx,440,t,0.15,'sine',0.2);
-  _osc(ctx,554,t+0.14,0.15,'sine',0.18);
-  _osc(ctx,659,t+0.28,0.3,'sine',0.2);
+  _bell(ctx,440,t,0.5,0.3);
+  _bell(ctx,554,t+0.3,0.5,0.26);
+  _bell(ctx,659,t+0.6,0.7,0.32);
+  // 硬币哗哗哗
+  for(let i=0;i<12;i++) _bell(ctx,900+Math.random()*700,t+0.95+i*0.05,0.1+Math.random()*0.1,0.14);
 });}
-// 按钮点击 — 轻柔咔哒
+
+// ── 按钮点击 ── 轻柔短噪声
 function sfxClick(){_sfx((ctx,t)=>{
-  _osc(ctx,800,t,0.04,'sine',0.12);
+  _noise(ctx,t,0.03,0.1,500,3000);
 });}
 
 function toggleMusic(){
