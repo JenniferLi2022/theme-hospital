@@ -1674,7 +1674,16 @@ function assignNext(p,fromRm){
     }
     return;
   }
-  const type=p.disease.steps[p.step];
+  let type=p.disease.steps[p.step];
+  // Campaign mode: skip steps for room types not yet unlocked in this level
+  if(G.gameMode==='campaign'&&G.levelId){
+    const def=LEVEL_DEFS.find(d=>d.id===G.levelId);
+    while(def&&p.step<p.disease.steps.length&&!def.unlocked.includes(p.disease.steps[p.step])){
+      p.step++;
+    }
+    if(p.step>=p.disease.steps.length){assignNext(p,fromRm);return;}
+    type=p.disease.steps[p.step];
+  }
   const rm=getRm(type);
   if(!rm){
     p.tx=T*3+Math.random()*(COLS-6)*T;p.ty=T*3+Math.random()*(ROWS-6)*T;
