@@ -279,6 +279,31 @@ canvas{display:block;}
       <button class="pop-btn" style="background:#374151;" onclick="document.getElementById('fire-pop').style.display='none'">取消</button>
     </div>
     <div id="cam-info">滚轮缩放 | 拖拽移动</div>
+    <!-- Room action panel -->
+    <div id="room-action" style="display:none;position:absolute;z-index:120;pointer-events:auto;
+      background:linear-gradient(160deg,#0d1f3c,#091628);border:1px solid #3b82f6;border-radius:10px;
+      padding:10px 12px;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+      <div id="ra-title" style="font-size:12px;font-weight:700;color:#e8f0ff;margin-bottom:8px;text-align:center;"></div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="startMoveRoom()" style="flex:1;padding:7px 4px;border-radius:6px;border:1px solid rgba(34,211,238,0.5);
+          background:rgba(34,211,238,0.1);color:#22d3ee;font-size:12px;cursor:pointer;">📦 移动</button>
+        <button onclick="confirmDeleteRoom()" style="flex:1;padding:7px 4px;border-radius:6px;border:1px solid rgba(248,113,113,0.5);
+          background:rgba(248,113,113,0.1);color:#f87171;font-size:12px;cursor:pointer;">🗑 拆除</button>
+        <button onclick="closeRoomAction()" style="padding:7px 8px;border-radius:6px;border:1px solid rgba(100,116,139,0.4);
+          background:rgba(100,116,139,0.1);color:#94a3b8;font-size:12px;cursor:pointer;">✕</button>
+      </div>
+      <div id="ra-refund" style="font-size:10px;color:#4a6a8a;margin-top:6px;text-align:center;"></div>
+    </div>
+    <!-- Delete confirm -->
+    <div id="del-room-pop" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:#0d1f3c;border:2px solid #ef4444;border-radius:10px;padding:22px 28px;text-align:center;z-index:130;min-width:260px;">
+      <div style="font-size:28px;margin-bottom:6px;">🏚️</div>
+      <h3 id="del-room-name" style="color:#ef4444;margin-bottom:8px;font-size:15px;"></h3>
+      <p style="color:#87ceeb;font-size:12px;margin-bottom:6px;">拆除该房间，退款 <b id="del-room-refund" style="color:#fbbf24"></b></p>
+      <p style="color:#6b7280;font-size:11px;margin-bottom:16px;">在院病人将被送回等候，员工自动解除分配。</p>
+      <button class="pop-btn" style="background:#ef4444;margin-right:8px;" onclick="doDeleteRoom()">确认拆除</button>
+      <button class="pop-btn" style="background:#374151;" onclick="document.getElementById('del-room-pop').style.display='none'">取消</button>
+    </div>
     <!-- Loan popup -->
     <div id="loan-pop" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
       background:#0d1f3c;border:2px solid #fbbf24;border-radius:10px;padding:20px 28px;text-align:center;z-index:100;min-width:320px;box-shadow:0 0 40px rgba(251,191,36,0.25);">
@@ -535,7 +560,8 @@ function mkState(){
     _notifyThrottle:{}, // {key: lastTime} for dedup
     goalIdx:0, goalComplete:false,
     over:false, particles:[], floats:[],
-    selectedStaffId:null, // for click-to-locate and drag-to-assign
+    selectedStaffId:null,
+    selectedRoomId:null, moveRoomId:null,
     _loanWarnShown:false, // bankruptcy warning popup shown once per dip
   };
 }
@@ -622,6 +648,109 @@ function mkStaffAppearance(type){
 // ══════════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// ROOM SELECT / MOVE / DELETE
+// ══════════════════════════════════════════════════════════
+function selectRoom(id){
+  G.selectedRoomId=id;
+  G.moveRoomId=null;
+  const rm=G.rooms.find(r=>r.id===id); if(!rm) return;
+  const d=RDEFS[rm.type];
+  const panel=document.getElementById('room-action');
+  document.getElementById('ra-title').textContent=d.icon+' '+d.name;
+  document.getElementById('ra-refund').textContent='拆除退款 $'+Math.round(d.cost*0.5).toLocaleString();
+  positionRoomActionPanel(rm);
+  panel.style.display='block';
+}
+function positionRoomActionPanel(rm){
+  const panel=document.getElementById('room-action');
+  // world coords of room centre top
+  const wx=rm.c*T+rm.w*T/2, wy=rm.r*T;
+  const sx=(wx-CAM.x)*CAM.scale, sy=(wy-CAM.y)*CAM.scale-8;
+  const pw=panel.offsetWidth||170;
+  const gareaRect=document.getElementById('garea').getBoundingClientRect();
+  let left=sx-pw/2;
+  let top=sy-50;
+  left=Math.max(4,Math.min(left,gareaRect.width-pw-4));
+  top=Math.max(4,top);
+  panel.style.left=left+'px';
+  panel.style.top=top+'px';
+}
+function closeRoomAction(){
+  G.selectedRoomId=null; G.moveRoomId=null;
+  document.getElementById('room-action').style.display='none';
+}
+function startMoveRoom(){
+  if(!G.selectedRoomId) return;
+  G.moveRoomId=G.selectedRoomId;
+  G.selectedRoomId=null;
+  document.getElementById('room-action').style.display='none';
+  notify('📦 点击空白处放置房间，右键取消','y');
+}
+function confirmDeleteRoom(){
+  if(!G.selectedRoomId) return;
+  const rm=G.rooms.find(r=>r.id===G.selectedRoomId); if(!rm) return;
+  G._pendingDeleteRoom=rm;
+  const d=RDEFS[rm.type];
+  document.getElementById('del-room-name').textContent=d.icon+' 拆除「'+d.name+'」';
+  document.getElementById('del-room-refund').textContent='$'+Math.round(d.cost*0.5).toLocaleString();
+  document.getElementById('del-room-pop').style.display='block';
+}
+function doDeleteRoom(){
+  document.getElementById('del-room-pop').style.display='none';
+  const rm=G._pendingDeleteRoom; G._pendingDeleteRoom=null;
+  if(!rm) return;
+  closeRoomAction();
+  _removeRoom(rm.id);
+}
+function _removeRoom(id){
+  const rm=G.rooms.find(r=>r.id===id); if(!rm) return;
+  const d=RDEFS[rm.type];
+  // Clear grid
+  for(let rr=rm.r;rr<rm.r+rm.h;rr++)
+    for(let cc=rm.c;cc<rm.c+rm.w;cc++)
+      if(G.grid[rr]&&G.grid[rr][cc]===id) G.grid[rr][cc]=0;
+  // Refund
+  const refund=Math.round(d.cost*0.5);
+  G.money+=refund;
+  notify(`🏚️ 已拆除「${d.name}」，退款 $${refund.toLocaleString()}`,'y');
+  // Unassign staff
+  rm.staffIds.forEach(sid=>{
+    const st=G.staff.find(s=>s.id===sid);
+    if(st){st.roomId=null;st.busy=false;}
+  });
+  // Kick out queued/busy patients
+  [...rm.queue,...(rm.slots||[])].forEach(pid=>{
+    const p=G.patients.find(pt=>pt.id===pid);
+    if(p){p.roomId=null;p.state='walk';p.tx=2*T;p.ty=p.y;}
+  });
+  G.rooms=G.rooms.filter(r=>r.id!==id);
+}
+function placeMoveRoom(c,r){
+  const id=G.moveRoomId; G.moveRoomId=null;
+  const rm=G.rooms.find(r2=>r2.id===id); if(!rm) return;
+  const d=RDEFS[rm.type];
+  // Check if new position is valid (excluding current room cells)
+  if(c<0||r<0||c+d.w>COLS||r+d.h>ROWS){notify('❌ 超出边界','r');G.moveRoomId=id;return;}
+  for(let rr=r;rr<r+d.h;rr++)
+    for(let cc=c;cc<c+d.w;cc++)
+      if(G.grid[rr]&&G.grid[rr][cc]&&G.grid[rr][cc]!==id){notify('❌ 此处无法放置','r');G.moveRoomId=id;return;}
+  // Clear old position
+  for(let rr=rm.r;rr<rm.r+rm.h;rr++)
+    for(let cc=rm.c;cc<rm.c+rm.w;cc++)
+      if(G.grid[rr]&&G.grid[rr][cc]===id) G.grid[rr][cc]=0;
+  // Set new position
+  rm.c=c; rm.r=r;
+  for(let rr=r;rr<r+d.h;rr++)
+    for(let cc=c;cc<c+d.w;cc++) G.grid[rr][cc]=id;
+  // Move queued/busy patients to new room position
+  [...rm.queue,...(rm.slots||[])].forEach(pid=>{
+    const p=G.patients.find(pt=>pt.id===pid);
+    if(p&&(p.state==='wait'||p.state==='treat')){p.tx=(c+d.w/2)*T;p.ty=(r+d.h*0.6)*T;}
+  });
+  notify(`✅ 「${d.name}」已移动`,'g');
+}
+
 function switchTab(t){
   document.querySelectorAll('.s-tab').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(el=>el.classList.remove('active'));
@@ -2056,6 +2185,33 @@ function draw(){
     cx.fillText(d.icon+' '+d.name+' ($'+d.cost.toLocaleString()+')',G.mx*T+4,G.my*T+14);
   }
 
+  // Move room preview
+  if(G.moveRoomId&&G.mx>=0&&G.my>=0){
+    const rm=G.rooms.find(r=>r.id===G.moveRoomId);
+    if(rm){
+      const d=RDEFS[rm.type];
+      // Check validity ignoring current room cells
+      let ok=G.mx>=0&&G.my>=0&&G.mx+d.w<=COLS&&G.my+d.h<=ROWS;
+      if(ok){
+        for(let rr=G.my;rr<G.my+d.h&&ok;rr++)
+          for(let cc=G.mx;cc<G.mx+d.w&&ok;cc++)
+            if(G.grid[rr]&&G.grid[rr][cc]&&G.grid[rr][cc]!==G.moveRoomId) ok=false;
+      }
+      // Dim original position
+      cx.fillStyle='rgba(0,0,0,0.45)';
+      cx.fillRect(rm.c*T,rm.r*T,rm.w*T,rm.h*T);
+      cx.setLineDash([5,4]);cx.strokeStyle='#94a3b8';cx.lineWidth=1.5;
+      cx.strokeRect(rm.c*T+1,rm.r*T+1,rm.w*T-2,rm.h*T-2);cx.setLineDash([]);
+      // Preview at cursor
+      cx.fillStyle=ok?'rgba(34,211,238,0.18)':'rgba(239,68,68,0.18)';
+      cx.fillRect(G.mx*T,G.my*T,d.w*T,d.h*T);
+      cx.strokeStyle=ok?'#22d3ee':'#ef4444';cx.lineWidth=2;cx.setLineDash([6,3]);
+      cx.strokeRect(G.mx*T+1,G.my*T+1,d.w*T-2,d.h*T-2);cx.setLineDash([]);
+      cx.fillStyle=ok?'#22d3ee':'#ef4444';cx.font='bold 11px sans-serif';
+      cx.fillText((ok?'📦 移至此处':'❌ 无法放置')+' '+d.icon,G.mx*T+4,G.my*T+14);
+    }
+  }
+
   // Staff assignment mode: highlight hovered room (in world/camera space)
   if(G.selectedStaffId&&!G.mode){
     const sel=G.staff.find(s=>s.id===G.selectedStaffId);
@@ -2077,6 +2233,21 @@ function draw(){
 
   // Rooms
   G.rooms.forEach(rm=>drawRoom(rm));
+
+  // Selected room highlight
+  if(G.selectedRoomId){
+    const rm=G.rooms.find(r=>r.id===G.selectedRoomId);
+    if(rm){
+      const t=Date.now()/600;
+      const alpha=0.55+0.3*Math.sin(t);
+      cx.strokeStyle=`rgba(34,211,238,${alpha})`;
+      cx.lineWidth=3;cx.setLineDash([7,3]);
+      cx.strokeRect(rm.c*T-1,rm.r*T-1,rm.w*T+2,rm.h*T+2);
+      cx.setLineDash([]);
+      // Update floating panel position each frame
+      positionRoomActionPanel(rm);
+    }
+  }
 
   // Standing patients
   G.patients.forEach(p=>{if(!p.lyingDown) drawPerson(p);});
@@ -2563,16 +2734,23 @@ cv.addEventListener('mouseup',e=>{
   if(!_dragMoved&&!G.over){
     const w=screenToWorld(sx,sy);
     const wc=Math.floor(w.x/T),wr=Math.floor(w.y/T);
-    if(G.mode){
+    if(G.moveRoomId){
+      placeMoveRoom(wc,wr);
+    } else if(G.mode){
       placeRoom(wc,wr);
     } else if(G.selectedStaffId){
-      // Try to assign selected staff to clicked room
       const clickedRoomId=G.grid[wr]?.[wc]||0;
-      if(clickedRoomId){
-        assignStaffToRoom(G.selectedStaffId,clickedRoomId);
-      }
+      if(clickedRoomId) assignStaffToRoom(G.selectedStaffId,clickedRoomId);
       G.selectedStaffId=null;
       refreshStaffPanel();
+    } else {
+      const clickedRoomId=G.grid[wr]?.[wc]||0;
+      if(clickedRoomId){
+        if(G.selectedRoomId===clickedRoomId){ closeRoomAction(); }
+        else { selectRoom(clickedRoomId); }
+      } else {
+        closeRoomAction();
+      }
     }
   }
   _drag=null;_dragMoved=false;
@@ -2586,8 +2764,10 @@ cv.addEventListener('mouseleave',()=>{
 
 cv.addEventListener('contextmenu',e=>{
   e.preventDefault();
-  G.mode=null;G.selectedStaffId=null;
-  document.querySelectorAll('.sbtn[id^="b-"]').forEach(b=>b.classList.remove('active'));
+  G.mode=null; G.selectedStaffId=null;
+  G.moveRoomId=null;
+  closeRoomAction();
+  document.querySelectorAll('.sbtn[id^="b-"],.mbtn[id^="mb-"]').forEach(b=>b.classList.remove('active'));
   refreshStaffPanel();
 });
 
@@ -2650,11 +2830,22 @@ cv.addEventListener('touchend',e=>{
       const sx=t.clientX-rect.left,sy=t.clientY-rect.top;
       const w=screenToWorld(sx,sy);
       const wc=Math.floor(w.x/T),wr=Math.floor(w.y/T);
-      if(G.mode){placeRoom(wc,wr);}
-      else if(G.selectedStaffId){
+      if(G.moveRoomId){
+        placeMoveRoom(wc,wr);
+      } else if(G.mode){
+        placeRoom(wc,wr);
+      } else if(G.selectedStaffId){
         const clickedRoomId=G.grid[wr]?.[wc]||0;
         if(clickedRoomId) assignStaffToRoom(G.selectedStaffId,clickedRoomId);
         G.selectedStaffId=null;refreshStaffPanel();
+      } else {
+        const clickedRoomId=G.grid[wr]?.[wc]||0;
+        if(clickedRoomId){
+          if(G.selectedRoomId===clickedRoomId) closeRoomAction();
+          else selectRoom(clickedRoomId);
+        } else {
+          closeRoomAction();
+        }
       }
     }
     _drag=null;_dragMoved=false;_lastPinchDist=0;
