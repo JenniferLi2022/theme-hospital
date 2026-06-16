@@ -198,11 +198,12 @@ canvas{display:block;}
 .lv-card.locked:hover{transform:none;box-shadow:none;border-color:#1e3a5f;}
 .lv-card.completed{border-color:#22c55e;}
 .lv-card.completed:hover{border-color:#4ade80;box-shadow:0 8px 24px rgba(74,222,128,0.2);}
-.lv-num{font-size:11px;color:#4a6a8a;letter-spacing:1px;margin-bottom:4px;}
-.lv-name{font-size:16px;font-weight:700;color:#e8f0ff;margin-bottom:4px;}
-.lv-desc{font-size:11px;color:#87ceeb;margin-bottom:8px;opacity:0.8;}
-.lv-win{font-size:11px;color:#4ade80;margin-bottom:8px;}
-.lv-stars{font-size:18px;letter-spacing:2px;margin-bottom:8px;}
+.lv-num{font-size:11px;color:#4a6a8a;letter-spacing:1px;margin-bottom:2px;}
+.lv-name{font-size:15px;font-weight:700;color:#e8f0ff;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lv-desc{font-size:11px;color:#87ceeb;margin-bottom:6px;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lv-win{font-size:11px;color:#4ade80;margin-bottom:6px;line-height:1.6;}
+.lv-win span{display:inline-block;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:4px;padding:1px 6px;margin:1px 2px 1px 0;font-size:10px;}
+.lv-stars{font-size:16px;letter-spacing:2px;margin-bottom:6px;}
 .lv-rooms{font-size:12px;color:#4a6a8a;}
 .lv-lock-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:32px;background:rgba(0,0,0,0.3);border-radius:12px;}
@@ -610,6 +611,7 @@ const RDEFS={
 const SNEED={receptionist:'接待员',doctor:'全科医生',psychiatrist:'精神科医生',nurse:'护士',researcher:'研究员',janitor:'清洁工',technician:'X光技师',surgeon:'外科医生'};
 const SALARY={receptionist:500,doctor:800,psychiatrist:850,nurse:600,researcher:900,janitor:400,technician:750,surgeon:1200};
 const STAFF_ORDER=['surgeon','doctor','psychiatrist','nurse','technician','receptionist','researcher','janitor'];
+const STAFF_COLOR={receptionist:'#22c55e',doctor:'#3b82f6',nurse:'#f97316',psychiatrist:'#a855f7',technician:'#00d4ff',surgeon:'#ff2d55',researcher:'#eab308',janitor:'#64748b'};
 
 const DISEASES=[
   // 普通病（不需要新房间）
@@ -2793,16 +2795,17 @@ function renderLevelSelect(){
     const starStr=completed?
       '⭐'.repeat(starCount)+'☆'.repeat(3-starCount):
       '☆☆☆';
-    const winStr=`治愈${def.win.cure}人 · 声誉≥${def.win.rep}`+(def.win.money?` · $${(def.win.money/1000).toFixed(0)}K`:'');
     const roomIcons=def.unlocked.map(k=>RDEFS[k]?.icon||'').join(' ');
     const card=document.createElement('div');
     card.className='lv-card'+(unlocked?'':' locked')+(completed?' completed':'');
     card.innerHTML=`
-      <div class="lv-num">第 ${def.id} 关</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="lv-num">第 ${def.id} 关</div>
+        <div class="lv-stars" style="margin:0;font-size:14px;">${starStr}</div>
+      </div>
       <div class="lv-name">${def.name}</div>
       <div class="lv-desc">${def.desc}</div>
-      <div class="lv-win">🎯 ${winStr}</div>
-      <div class="lv-stars">${starStr}</div>
+      <div class="lv-win">🎯 过关目标：<span>治愈 ${def.win.cure} 人</span><span>声誉≥${def.win.rep}</span>${def.win.money?`<span>资金≥$${(def.win.money/1000).toFixed(0)}K</span>`:''}</div>
       <div class="lv-rooms">${roomIcons}</div>
       ${!unlocked?'<div class="lv-lock-overlay">🔒</div>':''}
     `;
@@ -3330,10 +3333,11 @@ function refreshStaffPanel(){
     const skillBar=Math.min(100,Math.round((skill-1.0)*100));
     const typeName=SNEED[st.type]||st.type;
     const isSel=G.selectedStaffId===st.id;
-    const selStyle=isSel?'border:1px solid #a855f7;background:#1d0b30;':'';
+    const sColor=STAFF_COLOR[st.type]||'#5a7fa0';
+    const selStyle=isSel?`border:1px solid ${sColor};background:#1d0b30;`:`border-left:3px solid ${sColor};`;
     html+=`<div class="st-row ${rowCls}" style="cursor:pointer;${selStyle}" onclick="locateStaff(${st.id})" title="点击定位员工">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div class="st-name">${expr} ${st.name||typeName}</div>
+        <div class="st-name" style="color:${sColor}">${expr} ${st.name||typeName}</div>
         <button onclick="event.stopPropagation();openFirePop(${st.id})" title="解雇"
           style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:3px;
           font-size:9px;padding:1px 5px;cursor:pointer;flex-shrink:0;">解雇</button>
@@ -3370,9 +3374,10 @@ function refreshStaffPanel(){
         const mlv=Math.round(((st.skill||1)-1)*10);
         const msal=staffSalary(st);
         const mstars=mlv===0?'·':('⭐'.repeat(Math.min(mlv,5))+(mlv>5?`<sup style="font-size:8px">+${mlv-5}</sup>`:''));
-        mhtml+=`<div class="st-row ${rowCls}" style="padding:4px 6px;cursor:pointer;" onclick="locateStaff(${st.id})">
+        const msColor=STAFF_COLOR[st.type]||'#5a7fa0';
+        mhtml+=`<div class="st-row ${rowCls}" style="padding:4px 6px;cursor:pointer;border-left:3px solid ${msColor};" onclick="locateStaff(${st.id})">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
-            <span style="font-size:11px;color:#c8e4ff;">${expr} ${st.name}</span>
+            <span style="font-size:11px;color:${msColor};">${expr} ${st.name}</span>
             <span style="font-size:9px;color:#fbbf24;flex-shrink:0;">${mstars} $${msal}</span>
             <button onclick="event.stopPropagation();openFirePop(${st.id})" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:3px;font-size:9px;padding:1px 4px;cursor:pointer;flex-shrink:0;">解雇</button>
           </div>
