@@ -530,6 +530,45 @@ let CAM={x:0, y:0, scale:_initScale};
 let _drag=null, _dragMoved=false;
 
 function screenToWorld(sx,sy){return{x:sx/CAM.scale+CAM.x, y:sy/CAM.scale+CAM.y};}
+
+// ── Offscreen floor cache ──
+let _floorCanvas=null,_floorCtx=null,_floorDirty=true;
+function markFloorDirty(){_floorDirty=true;}
+function buildFloorCache(){
+  if(!_floorCanvas){_floorCanvas=document.createElement('canvas');_floorCtx=_floorCanvas.getContext('2d');}
+  _floorCanvas.width=COLS*T;_floorCanvas.height=ROWS*T;
+  const fc=_floorCtx;
+  fc.fillStyle='#080e18';fc.fillRect(0,0,COLS*T,ROWS*T);
+  // Batch tiles by color
+  fc.fillStyle='#0d1a2a';
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(G.grid[r][c]===0&&(c+r)%2===0) fc.fillRect(c*T,r*T,T,T);
+  fc.fillStyle='#0c1828';
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(G.grid[r][c]===0&&(c+r)%2!==0) fc.fillRect(c*T,r*T,T,T);
+  // Grout lines (single path, much cheaper)
+  fc.strokeStyle='#07111d';fc.lineWidth=0.8;
+  fc.beginPath();
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){if(G.grid[r][c]===0){fc.rect(c*T+0.5,r*T+0.5,T-1,T-1);}}
+  fc.stroke();
+  // Entrance strip
+  const entX=1.5,entY1=T*2,entY2=(ROWS-2)*T;
+  const eg=fc.createLinearGradient(entX,entY1,entX+10,entY1);
+  eg.addColorStop(0,'rgba(34,197,94,0.4)');eg.addColorStop(1,'rgba(34,197,94,0)');
+  fc.fillStyle=eg;fc.fillRect(entX,entY1,12,entY2-entY1);
+  fc.strokeStyle='#22c55e';fc.lineWidth=2;fc.setLineDash([6,4]);
+  fc.beginPath();fc.moveTo(entX,entY1);fc.lineTo(entX,entY2);fc.stroke();
+  fc.setLineDash([]);
+  fc.save();fc.translate(entX+10,ROWS*T/2);fc.rotate(-Math.PI/2);
+  fc.fillStyle='#22c55e';fc.font='bold 10px sans-serif';fc.textAlign='center';
+  fc.fillText('🚪 入口',0,0);fc.textAlign='left';fc.restore();
+  _floorDirty=false;
+}
+
+// ── Viewport culling ──
+function inView(wx,wy,margin){
+  const sx=(wx-CAM.x)*CAM.scale,sy=(wy-CAM.y)*CAM.scale;
+  const m=margin*CAM.scale;
+  return sx>-m&&sy>-m&&sx<cv.width+m&&sy<cv.height+m;
+}
 function clampCam(){
   const W=cv.width, H=cv.height;
   const maxX=COLS*T-W/CAM.scale, maxY=ROWS*T-H/CAM.scale;
@@ -761,6 +800,7 @@ function _removeRoom(id){
     if(p){p.roomId=null;p.state='walk';p.tx=2*T;p.ty=p.y;}
   });
   G.rooms=G.rooms.filter(r=>r.id!==id);
+  markFloorDirty();
 }
 function placeMoveRoom(c,r){
   const id=G.moveRoomId; G.moveRoomId=null;
@@ -785,6 +825,7 @@ function placeMoveRoom(c,r){
     if(p&&(p.state==='wait'||p.state==='treat')){p.tx=(c+d.w/2)*T;p.ty=(r+d.h*0.6)*T;}
   });
   notify(`✅ 「${d.name}」已移动`,'g');
+  markFloorDirty();
   buildPause(false);
 }
 
@@ -861,6 +902,7 @@ function placeRoom(c,r){
   const id=G.rid++;
   for(let rr=r;rr<r+d.h;rr++) for(let cc=c;cc<c+d.w;cc++) G.grid[rr][cc]=id;
   G.rooms.push({id,type:t,c,r,w:d.w,h:d.h,staffIds:[],queue:[],busy:false,timer:0,totalTreated:0,slots:[]});
+  markFloorDirty();
   G.money-=d.cost;
   spawnParticles(c*T+d.w*T/2,r*T+d.h*T/2,'#4ade80',12);
   notify(`✅ 建造了${d.name}！`,'g');
@@ -2291,47 +2333,18 @@ function draw(){
   cx.scale(CAM.scale,CAM.scale);
   cx.translate(-CAM.x,-CAM.y);
 
-  // Floor base
-  cx.fillStyle='#080e18';cx.fillRect(0,0,COLS*T,ROWS*T);
-  // Corridor tiles — polished hospital floor look
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      if(G.grid[r][c]===0){
-        const even=(c+r)%2===0;
-        cx.fillStyle=even?'#0d1a2a':'#0c1828';
-        cx.fillRect(c*T,r*T,T,T);
-        // Grout lines
-        cx.strokeStyle='#07111d';cx.lineWidth=0.8;
-        cx.strokeRect(c*T+0.5,r*T+0.5,T-1,T-1);
-        // Subtle gloss highlight top-left corner of tile
-        if(even){
-          cx.fillStyle='rgba(255,255,255,0.025)';
-          cx.fillRect(c*T+1,r*T+1,T*0.45,T*0.45);
-        }
-      }
-    }
-  }
-
-  // Entrance marker
-  const entX=1.5,entY1=T*2,entY2=(ROWS-2)*T;
-  // Glow strip
-  const entGrad=cx.createLinearGradient(entX,entY1,entX+10,entY1);
-  entGrad.addColorStop(0,'rgba(34,197,94,0.4)');entGrad.addColorStop(1,'rgba(34,197,94,0)');
-  cx.fillStyle=entGrad;cx.fillRect(entX,entY1,12,entY2-entY1);
-  cx.strokeStyle='#22c55e';cx.lineWidth=2;cx.setLineDash([6,4]);
-  cx.beginPath();cx.moveTo(entX,entY1);cx.lineTo(entX,entY2);cx.stroke();
-  cx.setLineDash([]);
-  cx.save();cx.translate(entX+10,ROWS*T/2);cx.rotate(-Math.PI/2);
-  cx.fillStyle='#22c55e';cx.font='bold 10px Segoe UI,sans-serif';
-  cx.textAlign='center';cx.fillText('🚪 入口',0,0);cx.textAlign='left';cx.restore();
+  // Floor from cache
+  if(_floorDirty) buildFloorCache();
+  cx.drawImage(_floorCanvas,0,0);
 
   // Dirts (under furniture)
   G.dirts.forEach(d=>{
-    if(isOpenTile(d.x,d.y)) drawDirt(d);
+    if(isOpenTile(d.x,d.y)&&inView(d.x,d.y,40)) drawDirt(d);
   });
 
   // Corridor objects
   CORRIDOR_OBJS.forEach(obj=>{
+    if(!inView(obj.x,obj.y,40)) return;
     const tc=Math.floor(obj.x/T),tr=Math.floor(obj.y/T);
     if(tr>=0&&tr<ROWS&&tc>=0&&tc<COLS&&G.grid[tr][tc]===0) drawCorridorObj(obj);
   });
@@ -2412,14 +2425,14 @@ function draw(){
     }
   }
 
-  // Standing patients
-  G.patients.forEach(p=>{if(!p.lyingDown) drawPerson(p);if(!p.lyingDown) drawCorrInteraction(p);});
+  // Standing patients (viewport culled)
+  G.patients.forEach(p=>{if(!p.lyingDown&&inView(p.x,p.y,60)){drawPerson(p);drawCorrInteraction(p);}});
   // Lying patients
-  G.patients.forEach(p=>{if(p.lyingDown) drawPerson(p);});
+  G.patients.forEach(p=>{if(p.lyingDown&&inView(p.x,p.y,60)) drawPerson(p);});
 
   // Roaming janitors — draw path line then sprite
   G.staff.filter(s=>s.type==='janitor').forEach(st=>{
-    if(st.wx===undefined) return;
+    if(st.wx===undefined||!inView(st.wx,st.wy,60)) return;
     drawStaffSprite(st.wx,st.wy,st);
     // Working indicator
     if(st.jstate==='working'){
@@ -2479,8 +2492,13 @@ function draw(){
 // ══════════════════════════════════════════════════════════
 const PAT_IV=280, SAL_IV=2200, EVT_IV=4000, DAY_IV=73;
 let last=0;
+// ── FPS cap for mobile ──
+const _isMobile=window.innerWidth<640;
+const _targetMs=_isMobile?34:16; // ~30fps on mobile, 60fps on desktop
+let _lastDraw=0;
 
 function loop(ts){
+  requestAnimationFrame(loop);
   if(!last) last=ts;
   const raw=Math.min((ts-last)/16,4);last=ts;
   const dt=raw*G.speed;
@@ -2654,20 +2672,28 @@ function loop(ts){
       document.getElementById('over').style.display='flex';
     }
 
-    document.getElementById('h-money').textContent='$'+Math.max(0,G.money).toLocaleString();
-    document.getElementById('h-rep').textContent=G.rep;
-    document.getElementById('h-pat').textContent=G.patients.length;
-    document.getElementById('h-cure').textContent=G.cured;
-    document.getElementById('h-fail').textContent=G.failed||0;
-    document.getElementById('h-died').textContent=G.died||0;
-    checkGoal();
-    syncMobInfo();
-
-    if(document.getElementById('tab-staff').classList.contains('active')) refreshStaffPanel();
+    // Throttle DOM updates to ~4/s (every 250ms)
+    if(!G._domTimer) G._domTimer=0;
+    G._domTimer+=dt;
+    if(G._domTimer>=15){
+      G._domTimer=0;
+      document.getElementById('h-money').textContent='$'+Math.max(0,G.money).toLocaleString();
+      document.getElementById('h-rep').textContent=G.rep;
+      document.getElementById('h-pat').textContent=G.patients.length;
+      document.getElementById('h-cure').textContent=G.cured;
+      document.getElementById('h-fail').textContent=G.failed||0;
+      document.getElementById('h-died').textContent=G.died||0;
+      checkGoal();
+      syncMobInfo();
+      if(document.getElementById('tab-staff').classList.contains('active')) refreshStaffPanel();
+      // Also refresh mobile staff panel if open
+      const mobStaffOpen=document.getElementById('mpanel-staff')?.classList.contains('active');
+      if(mobStaffOpen) refreshStaffPanel();
+    }
   }
 
-  draw();
-  requestAnimationFrame(loop);
+  // FPS cap: only redraw if enough time passed
+  if(ts-_lastDraw>=_targetMs){_lastDraw=ts;draw();}
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3188,6 +3214,7 @@ function loadGame(){
     document.getElementById('pause-overlay').style.display='none';
     document.getElementById('over').style.display='none';
     document.getElementById('event-pop').style.display='none';
+    markFloorDirty();
     refreshList(); refreshStaffPanel(); updateGoalHUD(); updateLoanHUD();
     notify('📂 读档成功！欢迎回来！','g');
     spawnFloat(COLS*T/2, ROWS*T*0.4, '📂 读档成功', '#60a5fa');
@@ -3333,9 +3360,10 @@ function restart(){
 // START
 // ══════════════════════════════════════════════════════════
 G=mkState();
+markFloorDirty();
 refreshList();
 updateGoalHUD();
-sanitizeStaffIds(); // clean up any ghost IDs on load
+sanitizeStaffIds();
 notify('🏥 欢迎！建挂号台→雇两名接待员→建诊室→雇医生！','g');
 notify('💡 心理诊室须配精神科医生，全科诊室须配全科医生！','p');
 notify('🚽 建卫生间，🧹 雇清洁工，员工疲劳自动转移病人！','p');
