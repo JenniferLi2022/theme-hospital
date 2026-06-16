@@ -190,17 +190,17 @@ canvas{display:block;}
 #ls-grid::-webkit-scrollbar{width:5px;}#ls-grid::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px;}
 .lv-card{
   background:linear-gradient(160deg,#0d1f3c,#091628);border-radius:12px;
-  border:1px solid #1e3a5f;padding:14px 16px 12px;cursor:pointer;
-  transition:all 0.18s;position:relative;overflow:visible;
+  border:1px solid #1e3a5f;padding:14px 16px 16px;cursor:pointer;
+  transition:all 0.18s;position:relative;overflow:hidden;
 }
 .lv-card:hover{border-color:#3b82f6;transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,0.2);}
 .lv-card.locked{opacity:0.5;cursor:not-allowed;filter:grayscale(0.5);}
 .lv-card.locked:hover{transform:none;box-shadow:none;border-color:#1e3a5f;}
 .lv-card.completed{border-color:#22c55e;}
 .lv-card.completed:hover{border-color:#4ade80;box-shadow:0 8px 24px rgba(74,222,128,0.2);}
-.lv-num{font-size:11px;color:#4a6a8a;letter-spacing:1px;margin-bottom:2px;}
-.lv-name{font-size:15px;font-weight:700;color:#e8f0ff;margin-bottom:3px;}
-.lv-desc{font-size:11px;color:#87ceeb;margin-bottom:6px;opacity:0.8;}
+.lv-num{font-size:11px;color:#4a6a8a;letter-spacing:1px;margin-bottom:2px;line-height:1.6;}
+.lv-name{font-size:15px;font-weight:700;color:#e8f0ff;margin-bottom:4px;line-height:1.7;}
+.lv-desc{font-size:11px;color:#87ceeb;margin-bottom:6px;opacity:0.8;line-height:1.6;}
 .lv-win{font-size:11px;color:#4ade80;margin-bottom:4px;line-height:1.8;flex-wrap:wrap;}
 .lv-win span{display:inline-block;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:4px;padding:2px 7px;margin:2px 3px 2px 0;font-size:10px;}
 .lv-stars{font-size:16px;letter-spacing:2px;}
@@ -369,6 +369,8 @@ canvas{display:block;}
   <div class="hud-item hd"><div class="hud-label">❌ 失败</div><div class="hud-val" id="h-fail" style="color:#f97316">0</div></div>
   <div class="hud-sep hd"></div>
   <div class="hud-item hd"><div class="hud-label">💀 死亡</div><div class="hud-val" id="h-died" style="color:#ef4444">0</div></div>
+  <div class="hud-sep hd"></div>
+  <div class="hud-item hd"><div class="hud-label">📊 治愈率</div><div class="hud-val" id="h-crate" style="color:#4ade80;font-size:11px">-</div></div>
   <div class="hud-sep"></div>
   <div class="hud-item"><div class="hud-label">🗓️ 时间</div><div class="hud-val" id="h-time" style="font-size:11px;color:#87ceeb">第1年1月</div></div>
   <div class="hud-goal" id="h-goal">目标：治愈 10 位病人</div>
@@ -531,6 +533,7 @@ canvas{display:block;}
           <div>✅ 治愈：<span id="m-cure" style="color:#a78bfa">0</span></div>
           <div>❌ 失败：<span id="m-fail" style="color:#f97316">0</span></div>
           <div>💀 死亡：<span id="m-died" style="color:#ef4444">0</span></div>
+          <div>📊 治愈率：<span id="m-crate" style="color:#4ade80">-</span></div>
           <div>🏦 贷款：<span id="m-loan" style="color:#f87171"></span></div>
           <div id="m-goal" style="color:#4ade80"></div>
         </div>
@@ -824,7 +827,7 @@ let _paused=false;
 
 function mkState(){
   return{
-    money:100000, rep:50, cured:0, died:0, failed:0,
+    money:100000, rep:50, cured:0, died:0, failed:0, leftAngry:0,
     year:1, month:1, day:1, tick:0, speed:1,
     mode:null, mx:-1, my:-1, _msx:0, _msy:0,
     rooms:[], staff:[], patients:[],
@@ -1086,6 +1089,13 @@ function syncMobInfo(){
   if(el('m-cure')) el('m-cure').textContent=G.cured;
   if(el('m-fail')) el('m-fail').textContent=G.failed||0;
   if(el('m-died')) el('m-died').textContent=G.died||0;
+  const _t=G.cured+(G.died||0)+(G.leftAngry||0);
+  if(el('m-crate')){
+    const cr=_t>0?Math.round(G.cured/_t*100):null;
+    const dr=_t>0?Math.round((G.died||0)/_t*100):null;
+    const fr=_t>0?Math.round((G.leftAngry||0)/_t*100):null;
+    el('m-crate').textContent=cr!=null?`${cr}% / 失败${fr}% / 死亡${dr}%`:'-';
+  }
   if(el('m-loan')) el('m-loan').textContent=G.loans.length?`${G.loans.length}笔`:'无';
   if(el('m-goal')){const g=YEAR_GOALS[Math.min(G.year-1,YEAR_GOALS.length-1)];el('m-goal').textContent=g?`目标:${g.label}`:'全部达成';}
 }
@@ -1133,7 +1143,6 @@ function placeRoom(c,r){
   G.rooms.push({id,type:t,c,r,w:d.w,h:d.h,staffIds:[],queue:[],busy:false,timer:0,totalTreated:0,slots:[]});
   markFloorDirty();
   G.money-=d.cost;
-  sfxBuild();
   spawnParticles(c*T+d.w*T/2,r*T+d.h*T/2,'#4ade80',12);
   notify(`✅ 建造了${d.name}！`,'g');
   autoAssignStaff();
@@ -1255,7 +1264,6 @@ function spawnGhost(x, y, name, appearance){
     alpha: 0, // fade in
   });
   spawnParticles(x, y, '#a78bfa', 10);
-  sfxGhost();
 }
 
 function tickGhost(g, dt){
@@ -1379,7 +1387,6 @@ function hire(type){
     notify(`✅ 雇用了清洁工${name}！`,'g');
   }
   G.staff.push(s);
-  sfxHire();
   refreshList(); refreshStaffPanel();
 }
 
@@ -1499,7 +1506,6 @@ function tickJanitor(st,dt){
           st.exp=(st.exp||0)+8;
         }
       }
-      sfxClean();
       st.jstate='idle';st.jtarget=null;
     }
   }
@@ -1538,7 +1544,7 @@ function spawnPatient(diff=1){
   };
   if(p.emergency) p.patience*=0.5;
   G.patients.push(p);
-  if(isVip) setTimeout(sfxVipCure,0); else setTimeout(sfxArrive,0);
+  // no arrival sfx
   assignNext(p);
 }
 
@@ -1783,7 +1789,7 @@ function tickP(p,dt){
         if(rm.type==='toilet'){
           rm.useCount=(rm.useCount||0)+1;
           if(rm.useCount>=8&&!rm.clogged){
-            rm.clogged=true; sfxClog();
+            rm.clogged=true;
             spawnFloat(rm.c*T+rm.w*T/2,rm.r*T,'🚫 卫生间堵了！','#ef4444');
             notify(`🚽 卫生间堵塞！需要清洁工清理！`,'r');
           }
@@ -1813,6 +1819,7 @@ function angryleave(p){
   if(p._corrAnim){p._corrAnim.obj._inUse=false;delete p._corrAnim;}
   p.state='leave';p.lyingDown=false;
   G.rep=Math.max(0,G.rep-2);
+  G.leftAngry=(G.leftAngry||0)+1;
   spawnFloat(p.x,p.y,'😤-2声誉','#f59e0b');
   notify(`😤 ${p.name}不耐烦离开！声誉-2`,'y');
   sfxAngry();
@@ -1902,7 +1909,6 @@ function triggerEvent(){
   pendingEvent=ev;
   document.getElementById('ep-title').textContent=ev.title;
   document.getElementById('ep-body').textContent=ev.body;
-  sfxEvent();
   document.getElementById('event-pop').style.display='block';
 }
 function closeEvent(){
@@ -2043,8 +2049,8 @@ function updateCorrInteraction(p,dt){
     ia.timer-=dt;
     if(ia.timer<=0){
       ia.obj._inUse=false;
-      if(ia.type==='vending'){spawnFloat(p.x,p.y-10,'😋 好喝！','#fbbf24');sfxVending();}
-      else{spawnFloat(p.x,p.y-10,'🎮 真好玩！','#a78bfa');sfxArcade();}
+      if(ia.type==='vending') spawnFloat(p.x,p.y-10,'😋 好喝！','#fbbf24');
+      else spawnFloat(p.x,p.y-10,'🎮 真好玩！','#a78bfa');
       p.tx=ia.ox; p.ty=ia.oy;
       delete p._corrAnim;
     }
@@ -2798,7 +2804,6 @@ function renderLevelSelect(){
     const roomIcons=def.unlocked.map(k=>RDEFS[k]?.icon||'').join(' ');
     const card=document.createElement('div');
     card.className='lv-card'+(unlocked?'':' locked')+(completed?' completed':'');
-    card.style.overflow='hidden';
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
         <div class="lv-num">第 ${def.id} 关</div>
@@ -2980,7 +2985,6 @@ function checkLevelWin(){
     if(def.id>=10){nextBtn.style.display='none';}
     else{nextBtn.style.display='';nextBtn.textContent=`下一关 (第${def.id+1}关) →`;}
     document.getElementById('level-win').style.display='flex';
-    sfxLevelWin();
     spawnParticles(COLS*T/2,ROWS*T/2,'#ffd700',40);
     notify(`🏆 关卡完成！获得${stars}星！`,'p');
   }
@@ -3040,7 +3044,6 @@ function loop(ts){
     }).length;
     if(vendingCount>0&&G.vendorTimer>=800){
       G.vendorTimer=0;const income=vendingCount*30;G.money+=income;
-      sfxMoney();
       spawnFloat(COLS*T*0.6,ROWS*T*0.5,`+$${income} 自动贩卖机`,'#ffd700');
     }
 
@@ -3158,7 +3161,7 @@ function loop(ts){
     if(G.salaryTimer>=SAL_IV){
       G.salaryTimer=0;
       const tot=G.staff.reduce((s,st)=>s+staffSalary(st),0);
-      if(tot>0){G.money-=tot;spawnFloat(COLS*T/2,80,'-$'+tot.toLocaleString()+' 月薪','#f59e0b');sfxSalary();}
+      if(tot>0){G.money-=tot;spawnFloat(COLS*T/2,80,'-$'+tot.toLocaleString()+' 月薪','#f59e0b');}
       // Loan repayments
       let loanPay=0;
       G.loans=G.loans.filter(l=>{
@@ -3215,6 +3218,12 @@ function loop(ts){
       document.getElementById('h-cure').textContent=G.cured;
       document.getElementById('h-fail').textContent=G.failed||0;
       document.getElementById('h-died').textContent=G.died||0;
+      const _tot=G.cured+(G.died||0)+(G.leftAngry||0);
+      const _crate=_tot>0?Math.round(G.cured/_tot*100):null;
+      const _drate=_tot>0?Math.round((G.died||0)/_tot*100):null;
+      const _frate=_tot>0?Math.round((G.leftAngry||0)/_tot*100):null;
+      const _crateEl=document.getElementById('h-crate');
+      if(_crateEl) _crateEl.textContent=_crate!=null?`${_crate}%`:'-';
       checkGoal();
       syncMobInfo();
       if(document.getElementById('tab-staff').classList.contains('active')) refreshStaffPanel();
@@ -3723,7 +3732,6 @@ function takeLoan(amount,monthly,months){
   G._loanWarnShown=false; // reset so warning can trigger again if they fall low again
   G.money+=amount;
   G.loans.push({monthly,remaining:months});
-  sfxLoan();
   notify(`🏦 贷款$${amount.toLocaleString()}到账！每月还$${monthly}，共${months}月`,'y');
   spawnFloat(COLS*T/2,ROWS*T*0.3,`+$${amount.toLocaleString()} 贷款`,'#fbbf24');
   updateLoanHUD();
