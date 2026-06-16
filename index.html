@@ -2776,7 +2776,7 @@ cv.addEventListener('mousemove',e=>{
   if(_drag){
     const dx=sx-_drag.sx,dy=sy-_drag.sy;
     if(!_dragMoved&&(Math.abs(dx)>3||Math.abs(dy)>3)) _dragMoved=true;
-    if(_dragMoved){
+    if(_dragMoved&&!G.mode&&!G.moveRoomId){
       CAM.x=_drag.cx-dx/CAM.scale;
       CAM.y=_drag.cy-dy/CAM.scale;
       clampCam();
@@ -2893,13 +2893,16 @@ cv.addEventListener('touchmove',e=>{
       clearTimeout(_lpTimer);_lpTimer=null;
     }
     if(_lpDragging){
-      // Room follows finger
+      // Move mode: room preview follows finger, map locked
       const w=screenToWorld(sx,sy);
       G.mx=Math.floor(w.x/T);G.my=Math.floor(w.y/T);
     } else if(_drag){
       const dx=sx-_drag.sx,dy=sy-_drag.sy;
       if(!_dragMoved&&(Math.abs(dx)>5||Math.abs(dy)>5)) _dragMoved=true;
-      if(_dragMoved){CAM.x=_drag.cx-dx/CAM.scale;CAM.y=_drag.cy-dy/CAM.scale;clampCam();}
+      // Lock map panning when in build or move mode
+      if(_dragMoved&&!G.mode&&!G.moveRoomId){
+        CAM.x=_drag.cx-dx/CAM.scale;CAM.y=_drag.cy-dy/CAM.scale;clampCam();
+      }
       const w=screenToWorld(sx,sy);G.mx=Math.floor(w.x/T);G.my=Math.floor(w.y/T);
     }
   } else if(ids.length===2){
