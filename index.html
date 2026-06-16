@@ -151,8 +151,8 @@ canvas{display:block;}
 }
 
 /* ── Main Menu ── */
-#main-menu{position:absolute;inset:0;z-index:200;background:linear-gradient(135deg,#020a18 0%,#041228 40%,#060c1e 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
+#main-menu{position:fixed;inset:0;z-index:200;background:linear-gradient(135deg,#020a18 0%,#041228 40%,#060c1e 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;overflow-y:auto;}
 #main-menu h1{
   font-size:clamp(36px,6vw,60px);font-weight:900;letter-spacing:2px;
   background:linear-gradient(135deg,#ffd700,#ff8c00,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
@@ -177,7 +177,7 @@ canvas{display:block;}
 #main-menu .desc{color:#4a6a8a;font-size:12px;text-align:center;max-width:380px;line-height:1.7;}
 
 /* ── Level Select ── */
-#level-select{position:absolute;inset:0;z-index:200;
+#level-select{position:fixed;inset:0;z-index:200;
   background:linear-gradient(135deg,#020a18 0%,#041228 40%,#060c1e 100%);
   display:none;flex-direction:column;overflow:hidden;}
 #level-select.show{display:flex;}
@@ -209,7 +209,7 @@ canvas{display:block;}
 #ls-footer{padding:14px 20px;border-top:1px solid #1a3050;flex-shrink:0;text-align:center;}
 
 /* ── Level Win Overlay ── */
-#level-win{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(4px);
+#level-win{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(4px);
   align-items:center;justify-content:center;z-index:200;}
 #level-win-box{
   background:linear-gradient(160deg,#0d2218,#091a10);
@@ -231,7 +231,7 @@ canvas{display:block;}
 .win-btn.grey{background:linear-gradient(135deg,#374151,#1f2937);box-shadow:none;}
 
 /* ── Level Intro Cutscene ── */
-#level-intro{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);
+#level-intro{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);
   align-items:center;justify-content:center;z-index:190;pointer-events:none;}
 #level-intro-text{
   text-align:center;max-width:500px;padding:32px 40px;
