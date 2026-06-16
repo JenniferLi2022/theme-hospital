@@ -3313,10 +3313,11 @@ function refreshStaffPanel(){
         const rowCls=st.resting?'resting':fat>70?'tired':'active';
         const mlv=Math.round(((st.skill||1)-1)*10);
         const msal=staffSalary(st);
+        const mstars=mlv===0?'·':('⭐'.repeat(Math.min(mlv,5))+(mlv>5?`<sup style="font-size:8px">+${mlv-5}</sup>`:''));
         mhtml+=`<div class="st-row ${rowCls}" style="padding:4px 6px;cursor:pointer;" onclick="locateStaff(${st.id})">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
             <span style="font-size:11px;color:#c8e4ff;">${expr} ${st.name}</span>
-            <span style="font-size:9px;color:#fbbf24;flex-shrink:0;">LV${mlv} $${msal}</span>
+            <span style="font-size:9px;color:#fbbf24;flex-shrink:0;">${mstars} $${msal}</span>
             <button onclick="event.stopPropagation();openFirePop(${st.id})" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:3px;font-size:9px;padding:1px 4px;cursor:pointer;flex-shrink:0;">解雇</button>
           </div>
           <div style="font-size:9px;color:#5a9abf;margin-bottom:2px;">${loc}</div>
