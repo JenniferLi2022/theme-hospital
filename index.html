@@ -360,6 +360,7 @@ canvas{display:block;}
         </div>
       </div>
       <div class="mob-panel" id="mpanel-staff">
+        <div id="mob-staff-list" style="max-height:120px;overflow-y:auto;margin-bottom:4px;"></div>
         <div class="mob-grid">
           <button class="mbtn mbtn-hire" onclick="hire('doctor')"><span>🩺 全科医生</span><span class="mc">$800</span></button>
           <button class="mbtn mbtn-hire" onclick="hire('nurse')"><span>👩‍⚕️ 护士</span><span class="mc">$600</span></button>
@@ -2807,6 +2808,39 @@ function refreshStaffPanel(){
     </div>`;
   });
   el.innerHTML=html;
+  // Also update mobile staff list
+  const mel=document.getElementById('mob-staff-list');
+  if(mel){
+    if(!G.staff.length){mel.innerHTML='<div style="color:#4a7fa0;padding:4px;font-size:11px;">尚未雇用员工</div>';}
+    else{
+      let mhtml='';
+      sorted.forEach(st=>{
+        const fat=Math.round(st.fatigue);
+        const fatColor=fat<40?'#4ade80':fat<70?'#ffd700':'#ef4444';
+        let loc;
+        if(st.type==='janitor'){
+          loc=st.resting?'💤 休息':st.jstate==='working'?'🧹 清扫':st.jstate==='going'?'🚶 前往':'🚶 巡逻';
+        } else {
+          const rm=G.rooms.find(r=>r.id===st.roomId);
+          loc=st.resting?'💤 休息室':rm?`${RDEFS[rm.type].icon}${RDEFS[rm.type].name}`:'无岗位';
+        }
+        const expr=fat<35?'😊':fat<65?'😐':fat<85?'😓':'😵';
+        const rowCls=st.resting?'resting':fat>70?'tired':'active';
+        mhtml+=`<div class="st-row ${rowCls}" style="padding:4px 6px;cursor:pointer;" onclick="locateStaff(${st.id})">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
+            <span style="font-size:11px;color:#c8e4ff;">${expr} ${st.name}</span>
+            <span style="font-size:10px;color:#5a9abf;flex-shrink:0;">${loc}</span>
+            <button onclick="event.stopPropagation();openFirePop(${st.id})" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:3px;font-size:9px;padding:1px 4px;cursor:pointer;flex-shrink:0;">解雇</button>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:2px;align-items:center;">
+            <div style="flex:1;height:3px;background:#0d2035;border-radius:2px;"><div style="width:${fat}%;height:100%;background:${fatColor};border-radius:2px;"></div></div>
+            <span style="font-size:9px;color:#5a7fa0;white-space:nowrap;">体力${100-fat}%</span>
+          </div>
+        </div>`;
+      });
+      mel.innerHTML=mhtml;
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════
