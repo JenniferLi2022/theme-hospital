@@ -1149,6 +1149,12 @@ function tickJanitor(st,dt){
       const dist=Math.sqrt(dx*dx+dy*dy);
       if(dist<bestDist){bestDist=dist;best={type:'bin',obj:o};}
     });
+    G.rooms.filter(r=>r.type==='toilet'&&r.clogged).forEach(r=>{
+      const px=rmPx(r);
+      const dx=px.x-st.wx, dy=px.y-st.wy;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<bestDist){bestDist=dist;best={type:'toilet',rm:r};}
+    });
     if(best){st.jtarget=best;st.jstate='going';}
     else{
       st._roamTimer-=dt;
@@ -1176,6 +1182,10 @@ function tickJanitor(st,dt){
       if(!gh){st.jstate='idle';st.jtarget=null;return;}
       // Ghosts move — track them live
       tx=gh.x;ty=gh.y;
+    } else if(st.jtarget.type==='toilet'){
+      const r=st.jtarget.rm;
+      if(!r||!r.clogged){st.jstate='idle';st.jtarget=null;return;}
+      const p=rmPx(r);tx=p.x;ty=p.y;
     } else {
       tx=st.jtarget.obj.x;ty=st.jtarget.obj.y;
     }
@@ -1205,6 +1215,13 @@ function tickJanitor(st,dt){
         st.jtarget.obj.fill=0;
         notify(`🗑️ ${st.name}倒空了垃圾桶`,'g');
         st.exp=(st.exp||0)+5;
+      } else if(st.jtarget.type==='toilet'){
+        const r=st.jtarget.rm;
+        if(r){r.clogged=false;r.useCount=0;
+          spawnFloat(rmPx(r).x,rmPx(r).y-10,'✅ 卫生间疏通','#4ade80');
+          notify(`🚽 ${st.name}疏通了卫生间！`,'g');
+          st.exp=(st.exp||0)+8;
+        }
       }
       st.jstate='idle';st.jtarget=null;
     }
@@ -1287,7 +1304,7 @@ function getRm(type){
     return tied[Math.floor(Math.random()*tied.length)];
   }
   if(type==='toilet'){
-    const pool=G.rooms.filter(r=>r.type==='toilet'&&!G.blackout);
+    const pool=G.rooms.filter(r=>r.type==='toilet'&&!G.blackout&&!r.clogged);
     return pickLeast(pool);
   }
   const pool=G.rooms.filter(r=>r.type===type&&r.staffIds.length>0&&!G.blackout);
@@ -1453,6 +1470,15 @@ function tickP(p,dt){
       rm.timer-=dt;
       if(rm.timer<=0){
         rm.busy=false;rm.queue.shift();rm.totalTreated++;
+        // Track toilet usage for clogging
+        if(rm.type==='toilet'){
+          rm.useCount=(rm.useCount||0)+1;
+          if(rm.useCount>=8&&!rm.clogged){
+            rm.clogged=true;
+            spawnFloat(rm.c*T+rm.w*T/2,rm.r*T,'🚫 卫生间堵了！','#ef4444');
+            notify(`🚽 卫生间堵塞！需要清洁工清理！`,'r');
+          }
+        }
         p.step++;p.roomId=null;
         spawnParticles(p.x,p.y,'#a78bfa',5);gainExp(rm,5);assignNext(p,rm);
       }
@@ -1475,6 +1501,7 @@ function angryleave(p){
       if(wasTreating){rm.busy=false;rm.timer=0;}
     }
   }
+  if(p._corrAnim){p._corrAnim.obj._inUse=false;delete p._corrAnim;}
   p.state='leave';p.lyingDown=false;
   G.rep=Math.max(0,G.rep-2);
   spawnFloat(p.x,p.y,'😤-2声誉','#f59e0b');
@@ -1632,10 +1659,15 @@ function drawCorridorObj(obj){
     });
     // Coin slot
     cx.fillStyle='#555';cx.fillRect(x-3,y-27,6,2);
-    // Glow
-    cx.shadowColor='#7c3aed';cx.shadowBlur=8;
-    cx.strokeStyle='#a855f7';cx.lineWidth=1;cx.strokeRect(x-7,y-23,14,13);
+    // Glow (brighter when in use)
+    const inUse=obj._inUse;
+    cx.shadowColor=inUse?'#f0abfc':'#7c3aed';cx.shadowBlur=inUse?18:8;
+    cx.strokeStyle=inUse?'#f0abfc':'#a855f7';cx.lineWidth=1;cx.strokeRect(x-7,y-23,14,13);
     cx.shadowBlur=0;
+    if(inUse){
+      cx.font='8px sans-serif';cx.fillStyle='#fde047';cx.textAlign='center';
+      cx.fillText('IN USE',x,y-28);cx.textAlign='left';
+    }
     // Label
     cx.font='6px sans-serif';cx.fillStyle='#c4b5fd';cx.textAlign='center';
     cx.fillText('GAME',x,y+18);cx.textAlign='left';
@@ -1649,6 +1681,65 @@ function drawCorridorObj(obj){
 function tickArcades(dt){
   CORRIDOR_OBJS.forEach(o=>{if(o.type==='arcade') o.anim=(o.anim||0)+dt*0.08;});
 }
+// ── Corridor object interactions ──
+function tickCorrInteractions(dt){
+  // Randomly trigger idle patients to use nearby vending/arcade
+  if(Math.random()>0.008*dt) return;
+  const idle=G.patients.filter(p=>p.state==='walk'&&!p.roomId&&!p._corrAnim);
+  if(!idle.length) return;
+  const p=idle[Math.floor(Math.random()*idle.length)];
+  const nearby=CORRIDOR_OBJS.filter(o=>(o.type==='vending'||o.type==='arcade')&&!o._inUse);
+  if(!nearby.length) return;
+  const obj=nearby[Math.floor(Math.random()*nearby.length)];
+  // Send patient to object
+  p._corrAnim={type:obj.type,obj,timer:obj.type==='arcade'?220:100,ox:p.tx,oy:p.ty};
+  p.tx=obj.x+4; p.ty=obj.y;
+  obj._inUse=true;
+}
+
+function drawCorrInteraction(p){
+  const ia=p._corrAnim;
+  if(!ia) return;
+  const px=p.x, py=p.y;
+  if(ia.type==='vending'){
+    // Float drink icon above patient
+    cx.font='14px serif';cx.textAlign='center';
+    const bob=Math.sin(Date.now()/200)*2;
+    cx.globalAlpha=0.9;cx.fillText('🥤',px,py-30+bob);cx.globalAlpha=1;
+    // Progress bar
+    const pct=1-ia.timer/100;
+    cx.fillStyle='rgba(0,0,0,0.5)';cx.fillRect(px-10,py-42,20,4);
+    cx.fillStyle='#fbbf24';cx.fillRect(px-10,py-42,20*pct,4);
+  } else if(ia.type==='arcade'){
+    // Gaming controller icon
+    cx.font='14px serif';cx.textAlign='center';
+    const shake=(Math.random()-0.5)*1.5;
+    cx.globalAlpha=0.9;cx.fillText('🕹️',px+shake,py-30);cx.globalAlpha=1;
+    // Score flash
+    if(Math.floor(Date.now()/300)%3===0){
+      cx.font='bold 9px sans-serif';cx.fillStyle='#fde047';cx.textAlign='center';
+      cx.fillText(`+${Math.floor(Math.random()*900+100)}`,px,py-44);
+    }
+  }
+  cx.textAlign='left';
+}
+
+function updateCorrInteraction(p,dt){
+  const ia=p._corrAnim;
+  if(!ia) return;
+  const dx=p.tx-p.x,dy=p.ty-p.y;
+  if(Math.sqrt(dx*dx+dy*dy)<6){
+    ia.timer-=dt;
+    if(ia.timer<=0){
+      ia.obj._inUse=false;
+      if(ia.type==='vending') spawnFloat(p.x,p.y-10,'😋 好喝！','#fbbf24');
+      else spawnFloat(p.x,p.y-10,'🎮 真好玩！','#a78bfa');
+      p.tx=ia.ox; p.ty=ia.oy;
+      delete p._corrAnim;
+    }
+  }
+}
+
 function drawDirt(d){
   cx.globalAlpha=0.55;
   cx.fillStyle='#3d2a10';
@@ -1739,8 +1830,16 @@ function drawRoom(rm){
       cx.fillStyle='rgba(255,255,255,0.55)';cx.font='7px sans-serif';
       cx.fillText(`床位 ${rm.slots.length}/${rm.staffIds.length}`,x+5,y+h-24);
     } else if(rm.type==='toilet'){
-      cx.fillStyle=rm.busy?'#a78bfa':'#22c55e';
-      cx.fillText(rm.busy?'🚽 使用中':'✓ 空闲',x+5,y+h-14);
+      if(rm.clogged){
+        cx.fillStyle='#ef4444';cx.fillText('⚠ 已堵塞',x+5,y+h-14);
+        // Flashing warning overlay
+        const t=Date.now()/400;
+        cx.fillStyle=`rgba(239,68,68,${0.12+0.08*Math.sin(t)})`;
+        cx.fillRect(x+1,y+1,w-2,h-2);
+      } else {
+        cx.fillStyle=rm.busy?'#a78bfa':'#22c55e';
+        cx.fillText(rm.busy?'🚽 使用中':'✓ 空闲',x+5,y+h-14);
+      }
     } else if(rm.busy){
       const pct=Math.max(0,Math.min(1,rm.timer/RDEFS[rm.type].treatTime));
       cx.fillStyle='rgba(0,0,0,0.45)';cx.fillRect(x+4,y+h-22,w-8,5);
@@ -2312,17 +2411,37 @@ function draw(){
   }
 
   // Standing patients
-  G.patients.forEach(p=>{if(!p.lyingDown) drawPerson(p);});
+  G.patients.forEach(p=>{if(!p.lyingDown) drawPerson(p);if(!p.lyingDown) drawCorrInteraction(p);});
   // Lying patients
   G.patients.forEach(p=>{if(p.lyingDown) drawPerson(p);});
 
-  // Roaming janitors
+  // Roaming janitors — draw path line then sprite
   G.staff.filter(s=>s.type==='janitor').forEach(st=>{
-    if(st.wx!==undefined) drawStaffSprite(st.wx,st.wy,st);
-    // Show working indicator
+    if(st.wx===undefined) return;
+    // Draw path to target
+    if(st.jstate==='going'&&st.jtarget){
+      let tx,ty;
+      if(st.jtarget.type==='dirt'){const d=G.dirts[st.jtarget.idx];if(d){tx=d.x;ty=d.y;}}
+      else if(st.jtarget.type==='ghost'){const g=G.ghosts[st.jtarget.idx];if(g){tx=g.x;ty=g.y;}}
+      else if(st.jtarget.type==='bin'){tx=st.jtarget.obj.x;ty=st.jtarget.obj.y;}
+      else if(st.jtarget.type==='toilet'){const p=rmPx(st.jtarget.rm);tx=p.x;ty=p.y;}
+      if(tx!==undefined){
+        cx.save();cx.setLineDash([4,4]);cx.strokeStyle='rgba(250,204,21,0.55)';cx.lineWidth=1.5;
+        cx.beginPath();cx.moveTo(st.wx,st.wy);cx.lineTo(tx,ty);cx.stroke();
+        cx.setLineDash([]);cx.restore();
+      }
+    }
+    drawStaffSprite(st.wx,st.wy,st);
+    // Working indicator
     if(st.jstate==='working'){
       cx.font='12px serif';cx.textAlign='center';
       cx.fillText('🧹',st.wx,(st.wy||0)-36);cx.textAlign='left';
+    }
+    // Idle indicator — blinking zzz
+    if(st.jstate==='idle'&&!st.resting){
+      const alpha=0.5+0.5*Math.sin(Date.now()/400);
+      cx.globalAlpha=alpha;cx.font='11px serif';cx.textAlign='center';
+      cx.fillText('💤',st.wx,(st.wy||0)-34);cx.textAlign='left';cx.globalAlpha=1;
     }
   });
 
@@ -2439,11 +2558,14 @@ function loop(ts){
     // Tick arcade animations
     tickArcades(dt);
 
+    // Corridor object interactions (patients idle near vending/arcade)
+    tickCorrInteractions(dt);
+
     // Tick ghosts
     G.ghosts.forEach(g=>tickGhost(g,dt));
 
     // Tick patients
-    G.patients.forEach(p=>tickP(p,dt));
+    G.patients.forEach(p=>{tickP(p,dt);updateCorrInteraction(p,dt);});
 
     // Tick staff
     const breakroom=G.rooms.find(r=>r.type==='breakroom');
