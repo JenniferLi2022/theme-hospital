@@ -511,14 +511,14 @@ canvas{display:block;}
       <div class="mob-panel" id="mpanel-staff">
         <div id="mob-staff-list" style="max-height:120px;overflow-y:auto;margin-bottom:4px;"></div>
         <div class="mob-grid">
-          <button class="mbtn mbtn-hire" onclick="hire('doctor')"><span>🩺 全科医生</span><span class="mc">$800</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('nurse')"><span>👩‍⚕️ 护士</span><span class="mc">$600</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('receptionist')"><span>💁 接待员</span><span class="mc">$500</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('janitor')"><span>🧹 清洁工</span><span class="mc">$400</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('psychiatrist')"><span>🧠 精神科医生</span><span class="mc">$850</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('technician')"><span>🦴 X光技师</span><span class="mc">$750</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('surgeon')"><span>🔪 外科医生</span><span class="mc">$1,200</span></button>
-          <button class="mbtn mbtn-hire" onclick="hire('researcher')"><span>🔬 研究员</span><span class="mc">$900</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-doctor"       onclick="hire('doctor')"><span>🩺 全科医生</span><span class="mc">$800</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-nurse"        onclick="hire('nurse')"><span>👩‍⚕️ 护士</span><span class="mc">$600</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-receptionist" onclick="hire('receptionist')"><span>💁 接待员</span><span class="mc">$500</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-janitor"      onclick="hire('janitor')"><span>🧹 清洁工</span><span class="mc">$400</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-psychiatrist" onclick="hire('psychiatrist')"><span>🧠 精神科医生</span><span class="mc">$850</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-technician"   onclick="hire('technician')"><span>🦴 X光技师</span><span class="mc">$750</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-surgeon"      onclick="hire('surgeon')"><span>🔪 外科医生</span><span class="mc">$1,200</span></button>
+          <button class="mbtn mbtn-hire" id="mhire-researcher"   onclick="hire('researcher')"><span>🔬 研究员</span><span class="mc">$900</span></button>
         </div>
       </div>
       <div class="mob-panel" id="mpanel-info">
@@ -563,14 +563,14 @@ canvas{display:block;}
       </div>
       <div class="side-sec">
         <div class="sec-title">👨‍⚕️ 雇用员工</div>
-        <button class="sbtn sbtn-hire" onclick="hire('receptionist')"><span>💁 接待员</span><span class="cost">$500</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('doctor')"><span>🩺 全科医生</span><span class="cost">$800</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('psychiatrist')"><span>🧠 精神科医生</span><span class="cost">$850</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('nurse')"><span>👩‍⚕️ 护士</span><span class="cost">$600</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('technician')"><span>🦴 X光技师</span><span class="cost">$750</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('surgeon')"><span>🔪 外科医生</span><span class="cost">$1,200</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('researcher')"><span>👨‍🔬 研究员</span><span class="cost">$900</span></button>
-        <button class="sbtn sbtn-hire" onclick="hire('janitor')"><span>🧹 清洁工</span><span class="cost">$400</span></button>
+        <button class="sbtn sbtn-hire" id="hire-receptionist" onclick="hire('receptionist')"><span>💁 接待员</span><span class="cost">$500</span></button>
+        <button class="sbtn sbtn-hire" id="hire-doctor"       onclick="hire('doctor')"><span>🩺 全科医生</span><span class="cost">$800</span></button>
+        <button class="sbtn sbtn-hire" id="hire-psychiatrist" onclick="hire('psychiatrist')"><span>🧠 精神科医生</span><span class="cost">$850</span></button>
+        <button class="sbtn sbtn-hire" id="hire-nurse"        onclick="hire('nurse')"><span>👩‍⚕️ 护士</span><span class="cost">$600</span></button>
+        <button class="sbtn sbtn-hire" id="hire-technician"   onclick="hire('technician')"><span>🦴 X光技师</span><span class="cost">$750</span></button>
+        <button class="sbtn sbtn-hire" id="hire-surgeon"      onclick="hire('surgeon')"><span>🔪 外科医生</span><span class="cost">$1,200</span></button>
+        <button class="sbtn sbtn-hire" id="hire-researcher"   onclick="hire('researcher')"><span>👨‍🔬 研究员</span><span class="cost">$900</span></button>
+        <button class="sbtn sbtn-hire" id="hire-janitor"      onclick="hire('janitor')"><span>🧹 清洁工</span><span class="cost">$400</span></button>
       </div>
       <div class="side-sec" style="padding:6px 8px 4px;"><div class="sec-title">📋 房间状态</div></div>
       <div id="room-scroll"><div style="color:#2a3f5a;padding:4px;font-size:11px;">尚未建造任何房间</div></div>
@@ -2854,8 +2854,22 @@ function startInfinite(){
   notify('🏥 建挂号台→雇接待员→建诊室→雇医生！','g');
 }
 
+// Which rooms a staff type needs (any one suffices to unlock hiring)
+const STAFF_NEEDS_ROOM={
+  receptionist:['reception'],
+  doctor:['gp'],
+  nurse:['pharmacy','ward'],
+  psychiatrist:['psychiatric'],
+  technician:['xray'],
+  surgeon:['surgery'],
+  researcher:['research'],
+  janitor:[], // always available
+};
+
 function applyUnlocks(unlocked){
   const unlockedSet=new Set(unlocked);
+
+  // Room build buttons
   Object.keys(RDEFS).forEach(key=>{
     const btnD=document.getElementById('b-'+key);
     const btnM=document.getElementById('mb-'+key);
@@ -2864,16 +2878,32 @@ function applyUnlocks(unlocked){
       if(!btn) return;
       btn.style.opacity=isUnlocked?'1':'0.35';
       btn.style.pointerEvents=isUnlocked?'auto':'none';
-      // Add/remove lock indicator
       const existing=btn.querySelector('.lock-ico');
       if(!isUnlocked&&!existing){
         const ico=document.createElement('span');
         ico.className='lock-ico';ico.textContent='🔒';
         ico.style.cssText='font-size:10px;margin-left:4px;';
         btn.appendChild(ico);
-      } else if(isUnlocked&&existing){
-        existing.remove();
-      }
+      } else if(isUnlocked&&existing){ existing.remove(); }
+    });
+  });
+
+  // Staff hire buttons
+  Object.entries(STAFF_NEEDS_ROOM).forEach(([type,rooms])=>{
+    const isUnlocked=rooms.length===0||rooms.some(r=>unlockedSet.has(r));
+    ['hire-'+type,'mhire-'+type].forEach(id=>{
+      const btn=document.getElementById(id);
+      if(!btn) return;
+      btn.style.opacity=isUnlocked?'1':'0.35';
+      btn.style.pointerEvents=isUnlocked?'auto':'none';
+      btn.title=isUnlocked?'':('🔒 需先解锁对应诊室');
+      const existing=btn.querySelector('.lock-ico');
+      if(!isUnlocked&&!existing){
+        const ico=document.createElement('span');
+        ico.className='lock-ico';ico.textContent='🔒';
+        ico.style.cssText='font-size:10px;margin-left:4px;';
+        btn.appendChild(ico);
+      } else if(isUnlocked&&existing){ existing.remove(); }
     });
   });
 }
