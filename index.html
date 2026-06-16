@@ -1676,7 +1676,6 @@ function assignNext(p,fromRm){
       spawnHearts(p.x,p.y);
       if(p.vip) spawnFloat(p.x,p.y-28,'👑 +声誉5','#ffd700');
       notify(p.vip?`👑 VIP ${p.name}治愈！+$${pay} +声誉5！`:`🎉 ${p.name}《${p.disease.name}》治愈！+$${pay}`,'g');
-      p.vip?sfxVipCure():sfxCure();
       if(fromRm) gainExp(fromRm,15);
       checkGoal();
     } else if(res.outcome==='death'){
