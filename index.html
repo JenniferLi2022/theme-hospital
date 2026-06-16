@@ -429,7 +429,7 @@ canvas{display:block;}
 // CONSTANTS
 // ══════════════════════════════════════════════════════════
 const COLS=72, ROWS=42;
-let T = window.innerWidth < 640 ? 20 : 28;
+const T = 28;
 
 const RDEFS={
   reception:  {name:'挂号台',    icon:'🪑',bg:'#0b3320',bd:'#22c55e',w:5,h:4, cost:2000, need:'receptionist',treatTime:60,  maxStaff:2},
@@ -517,7 +517,8 @@ const PAT_COLORS=['#e85d5d','#5db8e8','#5de87a','#e8c05d','#c05de8','#e8875d','#
 // ══════════════════════════════════════════════════════════
 // CAMERA
 // ══════════════════════════════════════════════════════════
-let CAM={x:0, y:0, scale:1.0};
+const _initScale = window.innerWidth < 640 ? 0.55 : 1.0;
+let CAM={x:0, y:0, scale:_initScale};
 let _drag=null, _dragMoved=false;
 
 function screenToWorld(sx,sy){return{x:sx/CAM.scale+CAM.x, y:sy/CAM.scale+CAM.y};}
@@ -527,7 +528,7 @@ function clampCam(){
   CAM.x=Math.max(-W*0.1/CAM.scale, Math.min(maxX+W*0.1/CAM.scale, CAM.x));
   CAM.y=Math.max(-H*0.1/CAM.scale, Math.min(maxY+H*0.1/CAM.scale, CAM.y));
 }
-function resetCam(){CAM.x=0;CAM.y=0;CAM.scale=1.0;}
+function resetCam(){CAM.x=0;CAM.y=0;CAM.scale=_initScale;}
 function zoomIn(){applyZoom(cv.width/2,cv.height/2,1.25);}
 function zoomOut(){applyZoom(cv.width/2,cv.height/2,1/1.25);}
 function applyZoom(sx,sy,factor){
@@ -808,14 +809,16 @@ function setMode(t){
 // Auto-pause helpers
 let _buildPaused=false;
 function buildPause(on){
-  if(on&&!_paused){_paused=true;_buildPaused=true;_syncPauseUI();}
-  else if(!on&&_buildPaused){_paused=false;_buildPaused=false;_syncPauseUI();}
+  // Silent pause — no overlay, UI stays fully interactive
+  if(on&&!_paused){_paused=true;_buildPaused=true;_syncPauseUI(true);}
+  else if(!on&&_buildPaused){_paused=false;_buildPaused=false;_syncPauseUI(false);}
 }
-function _syncPauseUI(){
+function _syncPauseUI(silent){
   const lbl=_paused?'▶️ 继续':'⏸️ 暂停';
   document.getElementById('pause-btn').textContent=lbl;
   const mb=document.getElementById('mpause-btn');if(mb)mb.textContent=_paused?'▶ 继续':'⏸ 暂停';
-  document.getElementById('pause-overlay').style.display=_paused?'flex':'none';
+  // Only show overlay for manual pause, not build-pause
+  if(!silent) document.getElementById('pause-overlay').style.display=_paused?'flex':'none';
 }
 function canPlace(c,r,w,h){
   if(c<0||r<0||c+w>COLS||r+h>ROWS) return false;
