@@ -181,26 +181,31 @@ canvas{display:block;}
 #mob-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;
   background:linear-gradient(180deg,#091628,#060f1e);
   border-top:1px solid #1a3050;box-shadow:0 -4px 20px rgba(0,0,0,0.5);}
-#mob-tabs{display:flex;border-bottom:1px solid #1a3050;}
-.m-tab{flex:1;padding:8px 4px;text-align:center;font-size:11px;cursor:pointer;color:#4a6a8a;
-  border-bottom:2px solid transparent;transition:all 0.15s;}
-.m-tab.active{color:#4ade80;border-bottom-color:#4ade80;background:rgba(74,222,128,0.05);}
-#mob-drawer{max-height:200px;overflow-y:auto;padding:6px;}
+#mob-tabs{display:flex;}
+.m-tab{flex:1;padding:9px 4px;text-align:center;font-size:12px;cursor:pointer;color:#4a6a8a;
+  border-top:2px solid transparent;transition:all 0.15s;}
+.m-tab.active{color:#4ade80;border-top-color:#4ade80;background:rgba(74,222,128,0.06);}
+#mob-drawer{
+  max-height:0;overflow:hidden;
+  transition:max-height 0.28s cubic-bezier(0.4,0,0.2,1);
+}
+#mob-bar.open #mob-drawer{max-height:220px;overflow-y:auto;}
 #mob-drawer::-webkit-scrollbar{width:3px;}
 #mob-drawer::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
+#mob-drawer-inner{padding:6px;}
 .mob-panel{display:none;}.mob-panel.active{display:block;}
 .mob-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:2px 0;}
 .mbtn{padding:7px 6px;border:1px solid rgba(30,58,95,0.8);border-radius:6px;
   cursor:pointer;font-size:11px;text-align:left;background:rgba(10,22,40,0.8);color:#c8dff0;
   display:flex;justify-content:space-between;align-items:center;transition:all 0.12s;width:100%;}
-.mbtn:hover,.mbtn:active{background:rgba(26,48,80,0.9);border-color:rgba(74,222,128,0.5);}
+.mbtn:active{background:rgba(26,48,80,0.9);border-color:rgba(74,222,128,0.5);}
 .mbtn.active{border-color:#e94560;color:#f87171;}
 .mbtn .mc{color:#fbbf24;font-size:10px;font-weight:600;}
 .mbtn-hire{border-color:rgba(76,29,149,0.6);}
-#mob-actions{display:flex;gap:4px;padding:6px;border-top:1px solid #1a3050;flex-wrap:wrap;}
-.mact{flex:1;min-width:52px;padding:7px 4px;border-radius:6px;font-size:10px;text-align:center;
+#mob-actions{display:flex;gap:4px;padding:6px 6px 8px;border-top:1px solid rgba(30,58,95,0.5);flex-wrap:wrap;}
+.mact{flex:1;min-width:48px;padding:6px 4px;border-radius:6px;font-size:10px;text-align:center;
   cursor:pointer;border:1px solid rgba(30,58,95,0.7);background:rgba(10,22,40,0.8);color:#87ceeb;transition:all 0.15s;}
-.mact:active{transform:scale(0.96);}
+.mact:active{transform:scale(0.93);background:rgba(26,48,80,0.9);}
 
 @media (max-width:640px){
   #hud{height:46px;padding:0 6px;gap:0;}
@@ -214,7 +219,8 @@ canvas{display:block;}
   #side{display:none;}
   #mob-bar{display:block;}
   #wrap{height:calc(100vh - 46px);}
-  #garea{height:calc(100vh - 46px - 248px);}
+  /* garea takes full remaining height; bottom bar is position:fixed so no offset needed */
+  #garea{height:100%;}
   #notifs{max-width:calc(100vw - 16px);font-size:10px;}
   .notif{padding:4px 8px;font-size:10px;}
   #cam-info{display:none;}
@@ -330,7 +336,7 @@ canvas{display:block;}
       <div class="m-tab" onclick="switchMobTab('staff')" id="mtab-staff">👨‍⚕️ 员工</div>
       <div class="m-tab" onclick="switchMobTab('info')" id="mtab-info">📊 信息</div>
     </div>
-    <div id="mob-drawer">
+    <div id="mob-drawer"><div id="mob-drawer-inner">
       <div class="mob-panel active" id="mpanel-build">
         <div class="mob-grid">
           <button class="mbtn" id="mb-reception"   onclick="setMode('reception')"><span>🪑 挂号台</span><span class="mc">$2,000</span></button>
@@ -367,7 +373,7 @@ canvas{display:block;}
           <div id="m-goal" style="color:#4ade80"></div>
         </div>
       </div>
-    </div>
+    </div></div><!-- /mob-drawer-inner /mob-drawer -->
     <div id="mob-actions">
       <button class="mact" onclick="togglePause()" id="mpause-btn" style="color:#fbbf24">⏸ 暂停</button>
       <button class="mact" onclick="toggleSpeed()" id="mspeed-btn" style="color:#87ceeb">⏩ 加速</button>
@@ -759,10 +765,18 @@ function switchTab(t){
   if(t==='staff') refreshStaffPanel();
 }
 function switchMobTab(t){
+  const bar=document.getElementById('mob-bar');
+  const wasActive=document.getElementById('mtab-'+t)?.classList.contains('active');
   document.querySelectorAll('.m-tab').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.mob-panel').forEach(el=>el.classList.remove('active'));
-  document.getElementById('mtab-'+t).classList.add('active');
-  document.getElementById('mpanel-'+t).classList.add('active');
+  if(wasActive&&bar.classList.contains('open')){
+    // tap active tab again → collapse
+    bar.classList.remove('open');
+  } else {
+    document.getElementById('mtab-'+t).classList.add('active');
+    document.getElementById('mpanel-'+t).classList.add('active');
+    bar.classList.add('open');
+  }
 }
 function syncMobInfo(){
   const el=id=>document.getElementById(id);
