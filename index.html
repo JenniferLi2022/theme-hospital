@@ -1,0 +1,2712 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>主题医院 🏥 Ultra</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#060c16;color:#fff;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;user-select:none;}
+
+/* ── HUD ── */
+#hud{
+  height:54px;
+  background:linear-gradient(180deg,#0f2040 0%,#09182e 100%);
+  border-bottom:1px solid #1e3a5f;
+  box-shadow:0 2px 16px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.05);
+  display:flex;align-items:center;padding:0 12px;gap:0;overflow:hidden;
+}
+.hud-sep{width:1px;height:32px;background:linear-gradient(180deg,transparent,#1e3a5f,transparent);margin:0 8px;flex-shrink:0;}
+.hud-item{display:flex;flex-direction:column;align-items:center;min-width:62px;flex-shrink:0;}
+.hud-label{font-size:9px;color:#4a6a8a;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:1px;}
+.hud-val{font-size:15px;font-weight:700;color:#ffd700;line-height:1.1;text-shadow:0 0 8px rgba(255,215,0,0.4);}
+#hud-title{
+  font-size:14px;font-weight:800;color:#fff;margin-right:8px;white-space:nowrap;flex-shrink:0;
+  background:linear-gradient(135deg,#e94560,#ff6b6b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:0.5px;
+}
+.hud-goal{flex:1;text-align:right;font-size:10px;color:#87ceeb;padding-right:8px;min-width:0;overflow:hidden;white-space:nowrap;opacity:0.8;}
+.hud-btn{
+  background:rgba(30,58,95,0.7);color:#4ade80;border:1px solid rgba(74,222,128,0.4);
+  padding:4px 9px;border-radius:6px;cursor:pointer;font-size:10px;margin-left:4px;
+  flex-shrink:0;white-space:nowrap;transition:all 0.15s;backdrop-filter:blur(4px);
+}
+.hud-btn:hover{background:rgba(74,222,128,0.15);border-color:#4ade80;box-shadow:0 0 8px rgba(74,222,128,0.2);}
+.hud-btn.red{color:#f87171;border-color:rgba(248,113,113,0.4);}
+.hud-btn.red:hover{background:rgba(248,113,113,0.15);border-color:#f87171;}
+.hud-btn.yellow{color:#fbbf24;border-color:rgba(251,191,36,0.4);}
+.hud-btn.yellow:hover{background:rgba(251,191,36,0.15);border-color:#fbbf24;}
+.hud-btn.cyan{color:#22d3ee;border-color:rgba(34,211,238,0.4);}
+.hud-btn.cyan:hover{background:rgba(34,211,238,0.15);border-color:#22d3ee;}
+
+/* ── Layout ── */
+#wrap{display:flex;height:calc(100vh - 54px);}
+#garea{flex:1;position:relative;overflow:hidden;cursor:default;}
+#garea.panning{cursor:grab;}
+canvas{display:block;}
+
+/* ── Sidebar ── */
+#side{
+  width:206px;
+  background:linear-gradient(180deg,#091628 0%,#060f1e 100%);
+  border-left:1px solid #1a3050;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:-4px 0 20px rgba(0,0,0,0.4);
+}
+.side-tabs{display:flex;border-bottom:1px solid #1a3050;background:rgba(0,0,0,0.3);}
+.s-tab{
+  flex:1;padding:7px 4px;text-align:center;font-size:10px;cursor:pointer;
+  color:#4a6a8a;border-bottom:2px solid transparent;transition:all 0.15s;letter-spacing:0.3px;
+}
+.s-tab:hover{color:#87ceeb;}
+.s-tab.active{color:#4ade80;border-bottom-color:#4ade80;background:rgba(74,222,128,0.05);}
+.tab-panel{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.tab-panel.active{display:flex;}
+.side-sec{padding:8px 8px;border-bottom:1px solid rgba(30,58,95,0.5);}
+.sec-title{font-size:9px;font-weight:700;color:#4a6a8a;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;}
+
+.sbtn{
+  width:100%;padding:6px 8px;margin-bottom:3px;
+  border:1px solid rgba(30,58,95,0.8);border-radius:6px;
+  cursor:pointer;font-size:11px;text-align:left;
+  background:rgba(10,22,40,0.8);color:#c8dff0;
+  display:flex;justify-content:space-between;align-items:center;transition:all 0.12s;
+}
+.sbtn:hover{background:rgba(26,48,80,0.9);border-color:rgba(74,222,128,0.5);color:#e8f5ff;transform:translateX(1px);}
+.sbtn.active{background:rgba(26,48,80,0.9);border-color:#e94560;color:#f87171;}
+.sbtn .cost{color:#fbbf24;font-size:10px;font-weight:600;}
+.sbtn-hire{border-color:rgba(76,29,149,0.6);}.sbtn-hire:hover{border-color:#a78bfa;color:#c4b5fd;}
+
+#room-scroll{flex:1;overflow-y:auto;padding:6px;}
+#room-scroll::-webkit-scrollbar{width:4px;}
+#room-scroll::-webkit-scrollbar-track{background:transparent;}
+#room-scroll::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
+.ri{
+  background:rgba(10,22,40,0.7);border-radius:6px;padding:6px 8px;margin-bottom:5px;
+  border-left:3px solid #1e3a5f;font-size:11px;transition:border-color 0.2s;
+}
+.ri.ok{border-left-color:#4ade80;}.ri.warn{border-left-color:#fbbf24;}
+.ri-name{font-weight:600;color:#c8dff0;}.ri-sub{color:#4a6a8a;margin-top:2px;font-size:10px;}
+
+#staff-scroll{flex:1;overflow-y:auto;padding:6px;}
+#staff-scroll::-webkit-scrollbar{width:4px;}
+#staff-scroll::-webkit-scrollbar-track{background:transparent;}
+#staff-scroll::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
+.st-row{
+  background:rgba(10,22,40,0.7);border-radius:6px;padding:6px 8px;margin-bottom:5px;
+  border-left:3px solid #1e3a5f;transition:all 0.15s;
+}
+.st-row:hover{background:rgba(20,36,60,0.9);}
+.st-row.active{border-left-color:#4ade80;}.st-row.resting{border-left-color:#d97706;}.st-row.tired{border-left-color:#ef4444;}
+.st-name{font-weight:600;color:#c8dff0;font-size:11px;}.st-role{color:#4a6a8a;font-size:9px;letter-spacing:0.3px;}
+.st-fat-bar{height:3px;background:rgba(30,58,95,0.6);border-radius:2px;margin-top:4px;}
+.st-fat-fill{height:3px;border-radius:2px;}
+
+/* ── Notifications ── */
+#notifs{position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:5px;pointer-events:none;max-width:360px;z-index:50;}
+.notif{
+  background:rgba(6,12,22,0.92);
+  border-left:3px solid #e94560;
+  padding:6px 12px;font-size:11px;border-radius:6px;
+  animation:nIn 0.22s cubic-bezier(0.2,0.8,0.3,1);
+  color:#ddeeff;
+  box-shadow:0 4px 16px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.04);
+  backdrop-filter:blur(8px);
+}
+.notif.g{border-left-color:#4ade80;box-shadow:0 4px 16px rgba(0,0,0,0.5),0 0 12px rgba(74,222,128,0.08);}
+.notif.y{border-left-color:#fbbf24;}
+.notif.p{border-left-color:#a78bfa;}
+@keyframes nIn{from{opacity:0;transform:translateX(-12px) scale(0.97);}to{opacity:1;transform:translateX(0) scale(1);}}
+
+/* ── Popups ── */
+#event-pop{
+  display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:linear-gradient(160deg,#0d1f3c,#091628);
+  border:1px solid rgba(233,69,96,0.6);border-radius:14px;padding:28px 32px;
+  text-align:center;z-index:100;min-width:290px;
+  box-shadow:0 0 40px rgba(233,69,96,0.2),0 20px 60px rgba(0,0,0,0.7);
+}
+#event-pop h2{color:#f87171;margin-bottom:10px;font-size:20px;text-shadow:0 0 16px rgba(233,69,96,0.5);}
+#event-pop p{color:#87ceeb;margin-bottom:18px;font-size:13px;line-height:1.6;}
+.pop-btn{
+  background:linear-gradient(135deg,#e94560,#c73652);color:#fff;border:none;
+  padding:9px 28px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;
+  box-shadow:0 4px 16px rgba(233,69,96,0.35);transition:all 0.15s;
+}
+.pop-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(233,69,96,0.5);}
+
+#pause-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;z-index:90;}
+#pause-box{text-align:center;}
+#pause-box h2{font-size:52px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,0.6);}
+#pause-box p{color:#87ceeb;font-size:14px;margin-top:10px;opacity:0.7;}
+
+#goal-banner{
+  display:none;position:absolute;top:0;left:0;right:0;
+  background:linear-gradient(90deg,rgba(13,79,47,0.95),rgba(26,107,60,0.95));
+  padding:9px 16px;font-size:12px;color:#4ade80;text-align:center;
+  border-bottom:1px solid rgba(74,222,128,0.4);z-index:50;
+  box-shadow:0 4px 20px rgba(74,222,128,0.1);backdrop-filter:blur(4px);
+}
+
+/* ── Game Over ── */
+#over{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:200;}
+#over-box{
+  background:linear-gradient(160deg,#0d1f3c,#091628);
+  border:1px solid rgba(233,69,96,0.5);border-radius:16px;
+  padding:38px 48px;text-align:center;max-width:420px;
+  box-shadow:0 0 60px rgba(233,69,96,0.15),0 30px 80px rgba(0,0,0,0.8);
+}
+#over-box h1{color:#f87171;font-size:30px;margin-bottom:12px;text-shadow:0 0 20px rgba(233,69,96,0.5);}
+#over-box p{color:#87ceeb;margin-bottom:8px;font-size:14px;line-height:1.5;}
+#over-box .restart{
+  background:linear-gradient(135deg,#e94560,#c73652);color:#fff;border:none;
+  padding:11px 32px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;
+  margin-top:18px;box-shadow:0 4px 20px rgba(233,69,96,0.4);transition:all 0.15s;
+}
+#over-box .restart:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(233,69,96,0.55);}
+
+/* ── Tooltip ── */
+#ttip{
+  position:absolute;
+  background:rgba(6,12,22,0.96);border:1px solid rgba(74,222,128,0.3);
+  padding:8px 12px;font-size:11px;border-radius:8px;
+  pointer-events:none;display:none;z-index:80;line-height:1.8;max-width:230px;color:#c8dff0;
+  box-shadow:0 8px 24px rgba(0,0,0,0.5);backdrop-filter:blur(8px);
+}
+#cam-info{position:absolute;bottom:6px;right:6px;font-size:10px;color:#1e3a5f;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="hud-title">🏥 主题医院</div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">💰 资金</div><div class="hud-val" id="h-money">$50,000</div></div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">⭐ 声誉</div><div class="hud-val" id="h-rep" style="color:#4ade80">50</div></div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">👥 在院</div><div class="hud-val" id="h-pat" style="color:#87ceeb">0</div></div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">✅ 治愈</div><div class="hud-val" id="h-cure" style="color:#a78bfa">0</div></div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">❌ 失败</div><div class="hud-val" id="h-fail" style="color:#f97316">0</div></div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">💀 死亡</div><div class="hud-val" id="h-died" style="color:#ef4444">0</div></div>
+  <div class="hud-sep"></div>
+  <div class="hud-item"><div class="hud-label">🗓️ 时间</div><div class="hud-val" id="h-time" style="font-size:11px;color:#87ceeb">第1年一月1日</div></div>
+  <div class="hud-goal" id="h-goal">目标：治愈 10 位病人</div>
+  <button class="hud-btn yellow" id="pause-btn" onclick="togglePause()">⏸️ 暂停</button>
+  <button class="hud-btn" id="speed-btn" onclick="toggleSpeed()">⏩ 加速</button>
+  <button class="hud-btn cyan" onclick="resetCam()">🎯 视角</button>
+  <button class="hud-btn" onclick="zoomIn()">🔍+</button>
+  <button class="hud-btn" onclick="zoomOut()">🔍-</button>
+  <button class="hud-btn" onclick="openLoan()" style="color:#fbbf24;border-color:#fbbf24">🏦 贷款</button>
+  <button class="hud-btn" id="music-btn" onclick="toggleMusic()">🎵 音乐</button>
+  <button class="hud-btn" onclick="saveGame()" style="color:#34d399;border-color:#34d399">💾 存档</button>
+  <button class="hud-btn" onclick="loadGame()" style="color:#60a5fa;border-color:#60a5fa">📂 读档</button>
+  <span id="h-loan" style="font-size:9px;color:#f87171;margin-left:4px;white-space:nowrap;"></span>
+</div>
+<div id="wrap">
+  <div id="garea">
+    <canvas id="c"></canvas>
+    <div id="notifs"></div>
+    <div id="goal-banner"></div>
+    <div id="event-pop">
+      <h2 id="ep-title"></h2><p id="ep-body"></p>
+      <button class="pop-btn" onclick="closeEvent()">确定</button>
+    </div>
+    <div id="pause-overlay"><div id="pause-box"><h2>⏸ 已暂停</h2><p>点击「继续」或按 Space 恢复</p></div></div>
+    <div id="over"><div id="over-box">
+      <h1>💸 医院倒闭了！</h1><p id="over-stat1"></p><p id="over-stat2"></p>
+      <div id="over-lb" style="margin:12px 0;text-align:left;max-height:160px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:8px;padding:8px 12px;font-size:13px;"></div>
+      <button class="restart" onclick="restart()">🔄 重新开始</button>
+    </div></div>
+    <div id="ttip"></div>
+    <!-- Fire staff confirm popup -->
+    <div id="fire-pop" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:#0d1f3c;border:2px solid #ef4444;border-radius:10px;padding:22px 30px;text-align:center;z-index:110;min-width:280px;">
+      <div style="font-size:28px;margin-bottom:8px;">👋</div>
+      <h3 id="fire-name" style="color:#ef4444;margin-bottom:8px;font-size:16px;"></h3>
+      <p style="color:#87ceeb;font-size:12px;margin-bottom:16px;">解雇后无法撤销，该员工经验将永久消失。</p>
+      <button class="pop-btn" style="background:#ef4444;margin-right:8px;" onclick="confirmFire()">确认解雇</button>
+      <button class="pop-btn" style="background:#374151;" onclick="document.getElementById('fire-pop').style.display='none'">取消</button>
+    </div>
+    <div id="cam-info">滚轮缩放 | 拖拽移动</div>
+    <!-- Loan popup -->
+    <div id="loan-pop" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:#0d1f3c;border:2px solid #fbbf24;border-radius:10px;padding:20px 28px;text-align:center;z-index:100;min-width:320px;box-shadow:0 0 40px rgba(251,191,36,0.25);">
+      <div id="loan-pop-warning" style="display:none;background:#7c1a1a;border:1px solid #ef4444;border-radius:6px;padding:8px 12px;margin-bottom:12px;">
+        <span style="font-size:20px;">🚨</span>
+        <span id="loan-pop-warn-msg" style="color:#fca5a5;font-size:13px;font-weight:bold;display:block;margin-top:4px;"></span>
+      </div>
+      <h2 id="loan-pop-title" style="color:#fbbf24;margin-bottom:8px;font-size:17px;">🏦 医院银行贷款</h2>
+      <p style="color:#87ceeb;font-size:12px;margin-bottom:14px;">选择贷款金额，每月自动扣除还款</p>
+      <button class="pop-btn" style="background:#1d4ed8;margin:4px;font-size:12px;" onclick="takeLoan(20000,600,40)">$20,000<br><small>每月还$600×40月</small></button>
+      <button class="pop-btn" style="background:#7c3aed;margin:4px;font-size:12px;" onclick="takeLoan(50000,1200,50)">$50,000<br><small>每月还$1,200×50月</small></button>
+      <button class="pop-btn" style="background:#b91c1c;margin:4px;font-size:12px;" onclick="takeLoan(100000,2000,60)">$100,000<br><small>每月还$2,000×60月</small></button>
+      <div id="loan-repay-section" style="margin-top:14px;border-top:1px solid #2a4060;padding-top:12px;display:none;">
+        <p style="color:#fbbf24;font-size:11px;font-weight:bold;margin-bottom:8px;">📋 当前贷款（提前还清享9折优惠）</p>
+        <div id="loan-repay-list"></div>
+      </div>
+      <br><button class="pop-btn" style="background:#374151;margin-top:10px;" id="loan-pop-cancel" onclick="closeLoanPop()">取消</button>
+    </div>
+  </div>
+  <div id="side">
+    <div class="side-tabs">
+      <div class="s-tab active" onclick="switchTab('build')" id="tab-build">🏗️ 建造</div>
+      <div class="s-tab" onclick="switchTab('staff')" id="tab-staff">👨‍⚕️ 员工</div>
+    </div>
+    <div class="tab-panel active" id="panel-build">
+      <div class="side-sec">
+        <div class="sec-title">🏗️ 建造房间</div>
+        <button class="sbtn" id="b-reception"   onclick="setMode('reception')"><span>🪑 挂号台</span><span class="cost">$2,000</span></button>
+        <button class="sbtn" id="b-gp"          onclick="setMode('gp')"><span>🩺 全科诊室</span><span class="cost">$5,000</span></button>
+        <button class="sbtn" id="b-pharmacy"    onclick="setMode('pharmacy')"><span>💊 药房</span><span class="cost">$3,000</span></button>
+        <button class="sbtn" id="b-psychiatric" onclick="setMode('psychiatric')"><span>🧠 心理诊室</span><span class="cost">$6,000</span></button>
+        <button class="sbtn" id="b-ward"        onclick="setMode('ward')"><span>🛏️ 病房</span><span class="cost">$6,000</span></button>
+        <button class="sbtn" id="b-xray"       onclick="setMode('xray')"><span>🦴 X光室</span><span class="cost">$9,000</span></button>
+        <button class="sbtn" id="b-surgery"    onclick="setMode('surgery')"><span>🔪 手术室</span><span class="cost">$14,000</span></button>
+        <button class="sbtn" id="b-research"   onclick="setMode('research')"><span>🔬 研究室</span><span class="cost">$8,000</span></button>
+        <button class="sbtn" id="b-breakroom"  onclick="setMode('breakroom')"><span>☕ 休息室</span><span class="cost">$3,000</span></button>
+        <button class="sbtn" id="b-toilet"     onclick="setMode('toilet')"><span>🚽 卫生间</span><span class="cost">$1,500</span></button>
+      </div>
+      <div class="side-sec">
+        <div class="sec-title">👨‍⚕️ 雇用员工</div>
+        <button class="sbtn sbtn-hire" onclick="hire('receptionist')"><span>💁 接待员</span><span class="cost">$500</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('doctor')"><span>🩺 全科医生</span><span class="cost">$800</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('psychiatrist')"><span>🧠 精神科医生</span><span class="cost">$850</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('nurse')"><span>👩‍⚕️ 护士</span><span class="cost">$600</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('technician')"><span>🦴 X光技师</span><span class="cost">$750</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('surgeon')"><span>🔪 外科医生</span><span class="cost">$1,200</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('researcher')"><span>👨‍🔬 研究员</span><span class="cost">$900</span></button>
+        <button class="sbtn sbtn-hire" onclick="hire('janitor')"><span>🧹 清洁工</span><span class="cost">$400</span></button>
+      </div>
+      <div class="side-sec" style="padding:6px 8px 4px;"><div class="sec-title">📋 房间状态</div></div>
+      <div id="room-scroll"><div style="color:#2a3f5a;padding:4px;font-size:11px;">尚未建造任何房间</div></div>
+    </div>
+    <div class="tab-panel" id="panel-staff">
+      <div class="side-sec" style="padding:6px 8px 4px;"><div class="sec-title">👨‍⚕️ 员工状态</div></div>
+      <div id="staff-scroll"><div style="color:#2a3f5a;padding:4px;font-size:11px;">尚未雇用员工</div></div>
+    </div>
+  </div>
+</div>
+<script>
+// ══════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════
+const T=28, COLS=72, ROWS=42;
+
+const RDEFS={
+  reception:  {name:'挂号台',    icon:'🪑',bg:'#0b3320',bd:'#22c55e',w:5,h:4, cost:2000, need:'receptionist',treatTime:60,  maxStaff:2},
+  gp:         {name:'全科诊室',  icon:'🩺',bg:'#0b1f40',bd:'#3b82f6',w:6,h:4, cost:5000, need:'doctor',      treatTime:120, maxStaff:1},
+  pharmacy:   {name:'药房',      icon:'💊',bg:'#3d1000',bd:'#f97316',w:5,h:4, cost:3000, need:'nurse',       treatTime:80,  maxStaff:1},
+  psychiatric:{name:'心理诊室',  icon:'🧠',bg:'#1d0b40',bd:'#a855f7',w:6,h:4, cost:6000, need:'psychiatrist',treatTime:150, maxStaff:1},
+  ward:       {name:'病房',      icon:'🛏️',bg:'#0b2d40',bd:'#06b6d4',w:8,h:5, cost:6000, need:'nurse',       treatTime:140, maxStaff:3},
+  xray:       {name:'X光室',     icon:'🦴',bg:'#001a2a',bd:'#00d4ff',w:6,h:4, cost:9000, need:'technician',  treatTime:100, maxStaff:1},
+  surgery:    {name:'手术室',    icon:'🔪',bg:'#1a0010',bd:'#ff2d55',w:8,h:5, cost:14000,need:'surgeon',     treatTime:220, maxStaff:2},
+  research:   {name:'研究室',    icon:'🔬',bg:'#1d2000',bd:'#eab308',w:6,h:4, cost:8000, need:'researcher',  treatTime:200, maxStaff:1},
+  breakroom:  {name:'员工休息室',icon:'☕',bg:'#1a1000',bd:'#d97706',w:5,h:4, cost:3000, need:null,          treatTime:0,   maxStaff:0},
+  toilet:     {name:'卫生间',    icon:'🚽',bg:'#1a0a2a',bd:'#9d4edd',w:3,h:3, cost:1500, need:null,          treatTime:25,  maxStaff:0},
+};
+
+const SNEED={receptionist:'接待员',doctor:'全科医生',psychiatrist:'精神科医生',nurse:'护士',researcher:'研究员',janitor:'清洁工',technician:'X光技师',surgeon:'外科医生'};
+const SALARY={receptionist:500,doctor:800,psychiatrist:850,nurse:600,researcher:900,janitor:400,technician:750,surgeon:1200};
+const STAFF_ORDER=['surgeon','doctor','psychiatrist','nurse','technician','receptionist','researcher','janitor'];
+
+const DISEASES=[
+  // 普通病（不需要新房间）
+  {name:'过度自拍症',    icon:'🤳',desc:'脖子成45度，无法停止自拍',   steps:['reception','gp','pharmacy'],               pay:240,rare:false},
+  {name:'大头综合症',    icon:'🤯',desc:'头部异常膨胀无法过门',        steps:['reception','gp','psychiatric'],             pay:380,rare:false},
+  {name:'幽灵骨折',      icon:'👻',desc:'患者声称骨头飘走了',          steps:['reception','gp','ward'],                   pay:430,rare:false},
+  {name:'网络成瘾综合症',icon:'📱',desc:'断网5分钟全身颤抖',           steps:['reception','psychiatric'],                  pay:290,rare:false},
+  {name:'慢性拖延症',    icon:'😴',desc:'患者已拖延就医三年',          steps:['reception','gp','pharmacy','psychiatric'],   pay:520,rare:false},
+  {name:'咖啡因依存症',  icon:'☕',desc:'血液已被咖啡替代',            steps:['reception','pharmacy'],                     pay:200,rare:false},
+  {name:'过度乐观症',    icon:'😁',desc:'认为一切都好，包括骨折',      steps:['reception','gp','psychiatric'],             pay:350,rare:false},
+  {name:'失忆症',        icon:'🤔',desc:'忘了自己为什么来医院',        steps:['reception','psychiatric','gp'],             pay:310,rare:false},
+  {name:'超级打嗝症',    icon:'😤',desc:'每秒打嗝，已持续48小时',      steps:['reception','gp','pharmacy'],               pay:220,rare:false},
+  {name:'极度社恐症',    icon:'🫣',desc:'看到人就晕，自己开诊断单来的', steps:['reception','psychiatric','pharmacy'],        pay:340,rare:false},
+  // 需要X光室的病
+  {name:'骨骼异位症',    icon:'🦴',desc:'X光显示骨头开会去了',         steps:['reception','xray','gp','ward'],            pay:580,rare:false},
+  {name:'内脏旅行症',    icon:'🫀',desc:'内脏每天换位置，很忙',        steps:['reception','gp','xray'],                   pay:420,rare:false},
+  {name:'隐形骨折',      icon:'🩻',desc:'普通X光照不出来，需要量子X光', steps:['reception','xray','pharmacy'],             pay:380,rare:false},
+  // 需要手术室的病
+  {name:'肘部多余症',    icon:'💪',desc:'右手多长出一个肘，影响打字',   steps:['reception','gp','surgery'],                pay:720,rare:false},
+  {name:'胃部错位症',    icon:'🫃',desc:'胃跑到了左边，总感觉饿',       steps:['reception','xray','surgery','ward'],        pay:950,rare:false},
+  // 稀有病
+  {name:'逆向衰老症',    icon:'👶',desc:'每天变年轻，已回到幼儿园',    steps:['reception','research','gp'],               pay:650,rare:true},
+  {name:'磁人症',        icon:'🧲',desc:'会吸附所有金属物体',          steps:['reception','research','pharmacy'],          pay:700,rare:true},
+  {name:'透明化症',      icon:'🫥',desc:'皮肤逐渐变透明内脏可见',      steps:['reception','gp','research','ward'],         pay:800,rare:true},
+  {name:'量子叠加症',    icon:'⚛️',desc:'同时在两个地方，挂号很麻烦',  steps:['reception','research','psychiatric','gp'],  pay:900,rare:true},
+  {name:'时间错乱症',    icon:'⏰',desc:'体感时间是别人的10倍，等候很痛苦',steps:['reception','xray','research','surgery'],pay:1100,rare:true},
+];
+
+const EVENTS=[
+  {title:'🎉 名人到访！',    body:'一位明星发了微博，今日病人翻倍！',          fn:g=>{g.patMult=2;setTimeout(()=>g.patMult=1,20000);}},
+  {title:'🦠 小型疫情！',    body:'城区暴发感冒，大量病人涌入！声誉+5',        fn:g=>{g.rep=Math.min(100,g.rep+5);g.patMult=2.5;setTimeout(()=>g.patMult=1,25000);}},
+  {title:'🔋 停电警报！',    body:'医院停电10秒，所有诊室暂停……',            fn:g=>{g.blackout=true;setTimeout(()=>g.blackout=false,10000);}},
+  {title:'💊 药物涨价！',    body:'药品成本上升，本月额外-$2000',              fn:g=>{g.money-=2000;}},
+  {title:'📺 电视采访！',    body:'医院上了新闻！声誉+10',                     fn:g=>{g.rep=Math.min(100,g.rep+10);}},
+  {title:'🧑‍⚖️ 医疗纠纷！', body:'赔偿$3000，声誉-5',                       fn:g=>{g.money-=3000;g.rep=Math.max(0,g.rep-5);}},
+  {title:'🎁 慈善捐款！',    body:'匿名善人捐款$5000，声誉+5！',              fn:g=>{g.money+=5000;g.rep=Math.min(100,g.rep+5);}},
+  {title:'🌡️ 热浪来袭！',   body:'极端高温！员工疲劳加速，坚持一会儿……',   fn:g=>{g.staff.forEach(s=>s.fatigue=Math.min(100,s.fatigue+20));}},
+  {title:'🏆 评优通知！',    body:'卫健委评优，奖励$8000！声誉+8！',          fn:g=>{g.money+=8000;g.rep=Math.min(100,g.rep+8);}},
+  {title:'🚑 大规模车祸！', body:'批量急诊涌入！3倍病人，收入+50%持续30秒', fn:g=>{g.patMult=3;g.bonusPay=1.5;setTimeout(()=>{g.patMult=1;g.bonusPay=1;},30000);}},
+  {title:'👩‍⚕️ 实习生周！', body:'医学院派来5名实习生帮忙！声誉+3，但失误率↑', fn:g=>{g.rep=Math.min(100,g.rep+3);g.internMode=true;setTimeout(()=>g.internMode=false,20000);}},
+  {title:'📰 负面报道！',    body:'某媒体曝光等候时间过长，声誉-8',           fn:g=>{g.rep=Math.max(0,g.rep-8);}},
+  {title:'💉 新药上市！',    body:'特效药上市，本月治疗费提升20%！',          fn:g=>{g.bonusPay=(g.bonusPay||1)*1.2;setTimeout(()=>g.bonusPay=1,25000);}},
+  {title:'🐀 鼠患爆发！',    body:'走廊出现老鼠！清洁工双倍工作量，声誉-3', fn:g=>{g.rep=Math.max(0,g.rep-3);for(let i=0;i<8;i++) spawnRandomDirt();}},
+];
+
+const YEAR_GOALS=[
+  {cure:8,  rep:55,  reward:6000,  label:'治愈8人，声誉≥55'},
+  {cure:25, rep:65,  reward:12000, label:'治愈25人，声誉≥65'},
+  {cure:55, rep:75,  reward:20000, label:'治愈55人，声誉≥75'},
+  {cure:100,rep:82,  reward:35000, label:'治愈100人，声誉≥82'},
+  {cure:180,rep:90,  reward:60000, label:'治愈180人，声誉≥90'},
+];
+
+const MONTHS=['一','二','三','四','五','六','七','八','九','十','十一','十二'];
+let CORRIDOR_OBJS=[];
+
+// ── Appearance pools ──
+const SKIN_TONES=['#ffd5a8','#f5c07a','#d4956a','#a06040','#7a4530','#ffe0c0','#c8845a'];
+const HAIR_COLORS=['#1a0800','#3d1800','#c89000','#b03000','#cccccc','#ffffff','#2244aa','#cc2288','#00aa66','#882200'];
+const HAIR_STYLES=['short_m','short_f','long','curly','bald','mohawk','ponytail','afro','buzz','side_part'];
+const CLOTH_COLORS=['#e94560','#3b82f6','#22c55e','#f97316','#a855f7','#ec4899','#06b6d4','#eab308','#64748b','#dc2626'];
+const PANT_COLORS=['#1e3a5f','#2d1b4e','#0d2d1a','#3d2000','#111','#2d2d2d','#4a3000','#1a1a3a'];
+const CLOTH_STYLES=['shirt','dress','suit','hoodie','tshirt'];
+const SHOE_COLORS=['#111','#4a3000','#8b0000','#fff','#1a3a1a','#222244'];
+const PNAMES=['张伟','李娜','王芳','刘洋','陈静','赵磊','孙敏','周浩','吴欣','郑强','马丽','胡勇','林晶','何鑫','高远','罗云','冯涛','徐燕','朱军','宋晓'];
+const PAT_COLORS=['#e85d5d','#5db8e8','#5de87a','#e8c05d','#c05de8','#e8875d','#5de8d4','#e85da0'];
+
+// ══════════════════════════════════════════════════════════
+// CAMERA
+// ══════════════════════════════════════════════════════════
+let CAM={x:0, y:0, scale:1.0};
+let _drag=null, _dragMoved=false;
+
+function screenToWorld(sx,sy){return{x:sx/CAM.scale+CAM.x, y:sy/CAM.scale+CAM.y};}
+function clampCam(){
+  const W=cv.width, H=cv.height;
+  const maxX=COLS*T-W/CAM.scale, maxY=ROWS*T-H/CAM.scale;
+  CAM.x=Math.max(-W*0.1/CAM.scale, Math.min(maxX+W*0.1/CAM.scale, CAM.x));
+  CAM.y=Math.max(-H*0.1/CAM.scale, Math.min(maxY+H*0.1/CAM.scale, CAM.y));
+}
+function resetCam(){CAM.x=0;CAM.y=0;CAM.scale=1.0;}
+function zoomIn(){applyZoom(cv.width/2,cv.height/2,1.25);}
+function zoomOut(){applyZoom(cv.width/2,cv.height/2,1/1.25);}
+function applyZoom(sx,sy,factor){
+  const wx=sx/CAM.scale+CAM.x, wy=sy/CAM.scale+CAM.y;
+  CAM.scale=Math.max(0.3,Math.min(3.0,CAM.scale*factor));
+  CAM.x=wx-sx/CAM.scale; CAM.y=wy-sy/CAM.scale; clampCam();
+}
+
+// ══════════════════════════════════════════════════════════
+// CANVAS
+// ══════════════════════════════════════════════════════════
+const cv=document.getElementById('c');
+const cx=cv.getContext('2d');
+function resize(){const a=document.getElementById('garea');cv.width=a.clientWidth;cv.height=a.clientHeight;}
+window.addEventListener('resize',resize); resize();
+
+// ══════════════════════════════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════════════════════════════
+let G;
+let _paused=false;
+
+function mkState(){
+  return{
+    money:100000, rep:50, cured:0, died:0, failed:0,
+    year:1, month:1, day:1, tick:0, speed:1,
+    mode:null, mx:-1, my:-1, _msx:0, _msy:0,
+    rooms:[], staff:[], patients:[],
+    grid:Array.from({length:ROWS},()=>new Array(COLS).fill(0)),
+    rid:1, pid:1,
+    patTimer:0, salaryTimer:0, eventTimer:0, dayTimer:0, vendorTimer:0,
+    dirtTimer:0, binTimer:0, repDirtTimer:0, _assignTimer:0, _rebalanceTimer:0, _busySanitizeTimer:0,
+    dirts:[],   // [{x,y,angle}] world pixels
+    ghosts:[], // [{x,y,vx,vy,anim,repTimer,appearance,name}]
+    loans:[],   // [{monthly, remaining}]
+    patMult:1, blackout:false, bonusPay:1, internMode:false,
+    _notifyThrottle:{}, // {key: lastTime} for dedup
+    goalIdx:0, goalComplete:false,
+    over:false, particles:[], floats:[],
+    selectedStaffId:null, // for click-to-locate and drag-to-assign
+    _loanWarnShown:false, // bankruptcy warning popup shown once per dip
+  };
+}
+
+// ══════════════════════════════════════════════════════════
+// FUNNY STAFF NAMES
+// ══════════════════════════════════════════════════════════
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function genStaffName(type,app){
+  const styleMap={bald:'光头',afro:'爆炸头',mohawk:'朋克头',curly:'卷毛',long:'长发',ponytail:'马尾',side_part:'偏分',short_m:'板寸',short_f:'齐耳',buzz:'寸头'};
+  const hairMap={'#cccccc':'白发','#ffffff':'银发','#2244aa':'蓝毛','#cc2288':'粉毛','#00aa66':'绿毛','#c89000':'金发','#b03000':'红发','#1a0800':'黑发','#3d1800':'棕发','#882200':'暗红'};
+  const parts=[];
+  if(styleMap[app.style]) parts.push(styleMap[app.style]);
+  if(hairMap[app.hair]) parts.push(hairMap[app.hair]);
+  if(app.glasses) parts.push(pick(['四眼','眼镜侠']));
+  if(app.beard) parts.push(pick(['大胡子','络腮']));
+  const suffixes={
+    doctor:['神医','华佗再世','外科狂人','游医','医痴'],
+    psychiatrist:['读心大师','脑波侦探','催眠高手','精神导师','潜意识猎人'],
+    nurse:['注射天才','消毒女神','针头达人','护士长'],
+    receptionist:['挂号王','叫号机器','登记大妈','签到王者'],
+    researcher:['疯狂博士','炸弹教授','配方怪人','实验狂魔'],
+    janitor:['扫地僧','拖把王','消毒大爷','卫生阿姨','洁癖超人'],
+  };
+  const prefix=parts.length>=2?parts.slice(0,2).join(''):
+    parts.length===1?parts[0]:pick(['神奇','著名','传说中的','网红','邻村来的']);
+  return prefix+pick(suffixes[type]||['员工']);
+}
+
+// ══════════════════════════════════════════════════════════
+// APPEARANCE HELPERS
+// ══════════════════════════════════════════════════════════
+function shade(hex,amt){
+  const n=parseInt(hex.replace('#',''),16);
+  const r=Math.min(255,Math.max(0,(n>>16)+amt));
+  const g=Math.min(255,Math.max(0,((n>>8)&0xff)+amt));
+  const b=Math.min(255,Math.max(0,(n&0xff)+amt));
+  return '#'+(r<<16|g<<8|b).toString(16).padStart(6,'0');
+}
+function mkAppearance(){
+  const hairStyle=pick(HAIR_STYLES);
+  const isFemale=Math.random()<0.5;
+  return{
+    skin:pick(SKIN_TONES), hair:pick(HAIR_COLORS),
+    style:hairStyle==='short_m'&&isFemale?'short_f':hairStyle,
+    cloth:pick(CLOTH_COLORS),
+    outfit:isFemale&&Math.random()<0.4?'dress':pick(CLOTH_STYLES.filter(s=>s!=='dress')),
+    pants:pick(PANT_COLORS), shoes:pick(SHOE_COLORS),
+    glasses:Math.random()<0.28, beard:!isFemale&&Math.random()<0.3,
+    blush:isFemale&&Math.random()<0.5,
+    eyeColor:Math.random()<0.15?'#3a8aff':Math.random()<0.15?'#3aaa44':'#333',
+  };
+}
+const UNIFORM={
+  receptionist:{cloth:'#2563eb',pants:'#1e3a5f',shoes:'#111'},
+  doctor:      {cloth:'#ffffff',pants:'#1e3a5f',shoes:'#111'},
+  psychiatrist:{cloth:'#a855f7',pants:'#4a0080',shoes:'#111'},
+  nurse:       {cloth:'#ec4899',pants:'#fff',   shoes:'#fff'},
+  researcher:  {cloth:'#e5e5e5',pants:'#333',   shoes:'#222'},
+  janitor:     {cloth:'#3d5c3d',pants:'#2d3a2d',shoes:'#4a3000'},
+  technician:  {cloth:'#00bcd4',pants:'#003040',shoes:'#111'},
+  surgeon:     {cloth:'#4caf50',pants:'#1a2e1a',shoes:'#222'},
+};
+function mkStaffAppearance(type){
+  const u=UNIFORM[type]||UNIFORM.janitor;
+  const isFemale=Math.random()<0.55;
+  const hairStyle=pick(HAIR_STYLES.filter(s=>s!=='mohawk'));
+  return{
+    skin:pick(SKIN_TONES), hair:pick(HAIR_COLORS),
+    style:hairStyle==='short_m'&&isFemale?'short_f':hairStyle,
+    cloth:u.cloth, outfit:'shirt', pants:u.pants, shoes:u.shoes,
+    glasses:type==='researcher'||type==='psychiatrist'||type==='technician'?true:Math.random()<0.25,
+    beard:!isFemale&&Math.random()<0.25,
+    blush:isFemale&&Math.random()<0.4,
+    eyeColor:Math.random()<0.15?'#3a8aff':Math.random()<0.1?'#3aaa44':'#333',
+    hasStethoscope:type==='doctor'||type==='nurse'||type==='psychiatrist'||type==='surgeon',
+    hasLabCoat:type==='researcher'||type==='technician',
+    hasTie:type==='receptionist'&&!isFemale,
+    capColor:type==='nurse'?'#fff':type==='surgeon'?'#4caf50':null,
+    hasMop:type==='janitor',
+  };
+}
+
+// ══════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════
+function switchTab(t){
+  document.querySelectorAll('.s-tab').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.getElementById('panel-'+t).classList.add('active');
+  if(t==='staff') refreshStaffPanel();
+}
+
+// ══════════════════════════════════════════════════════════
+// BUILD
+// ══════════════════════════════════════════════════════════
+function setMode(t){
+  G.mode=G.mode===t?null:t;
+  document.querySelectorAll('.sbtn[id^="b-"]').forEach(b=>b.classList.remove('active'));
+  if(G.mode) document.getElementById('b-'+t)?.classList.add('active');
+}
+function canPlace(c,r,w,h){
+  if(c<0||r<0||c+w>COLS||r+h>ROWS) return false;
+  for(let rr=r;rr<r+h;rr++) for(let cc=c;cc<c+w;cc++) if(G.grid[rr][cc]) return false;
+  return true;
+}
+function placeRoom(c,r){
+  const t=G.mode; if(!t) return;
+  const d=RDEFS[t];
+  if(G.money<d.cost){notify('💸 资金不足！','r');return;}
+  if(!canPlace(c,r,d.w,d.h)){notify('❌ 此处无法放置！','r');return;}
+  const id=G.rid++;
+  for(let rr=r;rr<r+d.h;rr++) for(let cc=c;cc<c+d.w;cc++) G.grid[rr][cc]=id;
+  G.rooms.push({id,type:t,c,r,w:d.w,h:d.h,staffIds:[],queue:[],busy:false,timer:0,totalTreated:0,slots:[]});
+  G.money-=d.cost;
+  spawnParticles(c*T+d.w*T/2,r*T+d.h*T/2,'#4ade80',12);
+  notify(`✅ 建造了${d.name}！`,'g');
+  autoAssignStaff();
+  refreshList();
+  rebuildCorridorObjs();
+}
+
+function sanitizeBusy(){
+  const liveIds=new Set(G.patients.map(p=>p.id));
+  G.rooms.forEach(rm=>{
+    if(rm.type==='ward') return;
+    // Strip ghost IDs from queue (patients who left, died, or are in wrong state)
+    rm.queue=rm.queue.filter(id=>{
+      if(!liveIds.has(id)) return false; // patient no longer exists
+      const p=G.patients.find(x=>x.id===id);
+      if(!p) return false;
+      // Only keep patients that are actually waiting/treating in this room
+      return p.roomId===rm.id&&(p.state==='wait'||p.state==='treat'||p.state==='walk');
+    });
+    // If room is busy but no patient is actually in 'treat' state for it, release lock
+    if(rm.busy){
+      const hasTreating=G.patients.some(p=>p.roomId===rm.id&&p.state==='treat');
+      if(!hasTreating){rm.busy=false;rm.timer=0;}
+    }
+  });
+}
+function sanitizeStaffIds(){
+  // Remove any ghost IDs (IDs that don't match a real staff member)
+  const validIds=new Set(G.staff.map(s=>s.id));
+  G.rooms.forEach(rm=>{
+    rm.staffIds=rm.staffIds.filter(id=>validIds.has(id));
+  });
+  // Also fix any staff whose roomId points to a non-existent or wrong room
+  G.staff.forEach(st=>{
+    if(st.roomId===null) return;
+    const rm=G.rooms.find(r=>r.id===st.roomId);
+    if(!rm||!rm.staffIds.includes(st.id)) st.roomId=null;
+  });
+}
+function autoAssignStaff(){
+  sanitizeStaffIds();
+  let changed=false;
+  G.staff.forEach(st=>{
+    if(st.type==='janitor') return;
+    if(st.roomId!==null||st.resting) return;
+    const needsThis=Object.entries(RDEFS).filter(([,d])=>d.need===st.type).map(([k])=>k);
+    const room=G.rooms.find(rm=>needsThis.includes(rm.type)&&rm.staffIds.length<RDEFS[rm.type].maxStaff);
+    if(room){room.staffIds.push(st.id);st.roomId=room.id;notify(`✅ ${st.name}自动入职${RDEFS[room.type].name}`,'g');changed=true;}
+  });
+  if(changed){refreshList();refreshStaffPanel();}
+}
+
+// ══════════════════════════════════════════════════════════
+// CORRIDOR OBJECTS (benches, vending, bins)
+// ══════════════════════════════════════════════════════════
+function rebuildCorridorObjs(){
+  CORRIDOR_OBJS=[];
+  const placed=new Set();
+  for(let r=1;r<ROWS-1;r++){
+    for(let c=2;c<COLS-2;c++){
+      if(G.grid[r][c]!==0) continue;
+      const key=`${c},${r}`;
+      if(placed.has(key)) continue;
+      if((c+r)%6===0&&r>2&&r<ROWS-2){
+        CORRIDOR_OBJS.push({type:'bench',x:c*T+T/2,y:r*T+T/2});placed.add(key);
+      } else if((c+r)%9===2&&r>2&&r<ROWS-2){
+        CORRIDOR_OBJS.push({type:'vending',x:c*T+T/2,y:r*T+T/2});placed.add(key);
+      } else if((c+r)%12===5&&r>3&&r<ROWS-3){
+        CORRIDOR_OBJS.push({type:'bin',x:c*T+T/2,y:r*T+T/2,fill:0});placed.add(key);
+      } else if((c+r)%15===8&&r>2&&r<ROWS-2){
+        CORRIDOR_OBJS.push({type:'arcade',x:c*T+T/2,y:r*T+T/2,anim:Math.random()*Math.PI*2});placed.add(key);
+      }
+    }
+  }
+  CORRIDOR_OBJS=CORRIDOR_OBJS.slice(0,40);
+}
+
+function isOpenTile(wx,wy){
+  const c=Math.floor(wx/T),r=Math.floor(wy/T);
+  return c>=0&&c<COLS&&r>=0&&r<ROWS&&G.grid[r][c]===0;
+}
+
+// ══════════════════════════════════════════════════════════
+// DIRT SYSTEM
+// ══════════════════════════════════════════════════════════
+function spawnDirt(wx,wy){
+  if(G.dirts.length>=60) return;
+  // snap to nearby open tile
+  for(let attempt=0;attempt<10;attempt++){
+    const dx=(Math.random()-0.5)*T*2, dy=(Math.random()-0.5)*T*2;
+    const x=wx+dx, y=wy+dy;
+    if(isOpenTile(x,y)){G.dirts.push({x,y,angle:Math.random()*Math.PI});return;}
+  }
+}
+function spawnRandomDirt(){
+  const openTiles=[];
+  for(let r=1;r<ROWS-1;r++) for(let c=1;c<COLS-1;c++) if(G.grid[r][c]===0) openTiles.push({c,r});
+  if(!openTiles.length) return;
+  const t=pick(openTiles);
+  G.dirts.push({x:(t.c+0.3+Math.random()*0.4)*T,y:(t.r+0.3+Math.random()*0.4)*T,angle:Math.random()*Math.PI});
+}
+
+// ══════════════════════════════════════════════════════════
+// GHOST SYSTEM
+// ══════════════════════════════════════════════════════════
+function spawnGhost(x, y, name, appearance){
+  const angle = Math.random() * Math.PI * 2;
+  const spd = 0.4 + Math.random() * 0.3;
+  G.ghosts.push({
+    x, y,
+    vx: Math.cos(angle) * spd,
+    vy: Math.sin(angle) * spd,
+    anim: Math.random() * Math.PI * 2,
+    repTimer: 0,
+    roamTimer: 120 + Math.random() * 180,
+    name: name || '无名氏',
+    appearance: appearance || mkAppearance(),
+    alpha: 0, // fade in
+  });
+  spawnParticles(x, y, '#a78bfa', 10);
+}
+
+function tickGhost(g, dt){
+  g.anim += dt * 0.03;
+  g.alpha = Math.min(1, g.alpha + dt * 0.02); // fade in
+
+  // Wander: periodically pick new direction
+  g.roamTimer -= dt;
+  if(g.roamTimer <= 0){
+    g.roamTimer = 120 + Math.random() * 200;
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 0.3 + Math.random() * 0.4;
+    g.vx = Math.cos(angle) * spd;
+    g.vy = Math.sin(angle) * spd;
+  }
+
+  g.x += g.vx;
+  g.y += g.vy;
+
+  // Bounce off world edges
+  const margin = T * 2;
+  if(g.x < margin){ g.x = margin; g.vx = Math.abs(g.vx); }
+  if(g.x > COLS*T - margin){ g.x = COLS*T - margin; g.vx = -Math.abs(g.vx); }
+  if(g.y < margin){ g.y = margin; g.vy = Math.abs(g.vy); }
+  if(g.y > ROWS*T - margin){ g.y = ROWS*T - margin; g.vy = -Math.abs(g.vy); }
+
+  // Periodically scare patients and drain reputation
+  g.repTimer += dt;
+  if(g.repTimer >= 400){
+    g.repTimer = 0;
+    G.rep = Math.max(0, G.rep - 1);
+    spawnFloat(g.x, g.y - 10, '👻 -1声誉', '#a78bfa');
+    // Scare nearby patients (they lose patience faster)
+    G.patients.forEach(p => {
+      const dx = p.x - g.x, dy = p.y - g.y;
+      if(Math.sqrt(dx*dx+dy*dy) < T*3){
+        p.patience = Math.max(0, p.patience - 60);
+        spawnFloat(p.x, p.y - 20, '😱', '#f59e0b');
+      }
+    });
+    if(G.ghosts.length >= 3)
+      notify(`👻 ${G.ghosts.length}只幽灵游荡！快叫清洁工驱鬼！`,'r','ghost_warn',5000);
+  }
+}
+
+function drawGhost(g){
+  const x = Math.round(g.x);
+  const y = Math.round(g.y + Math.sin(g.anim) * 4); // floating bob
+  const a = g.appearance;
+
+  cx.save();
+  cx.globalAlpha = (g.alpha || 1) * 0.82;
+
+  // Ghost body — translucent teardrop
+  cx.fillStyle = '#c4b5fd';
+  cx.beginPath();
+  cx.ellipse(x, y - 8, 11, 14, 0, 0, Math.PI * 2);
+  cx.fill();
+
+  // Wavy bottom
+  cx.beginPath();
+  cx.moveTo(x - 11, y + 4);
+  for(let i = 0; i <= 4; i++){
+    const wx = x - 11 + i * 5.5;
+    const wy = y + 4 + (i % 2 === 0 ? 5 : 0);
+    cx.lineTo(wx, wy);
+  }
+  cx.lineTo(x + 11, y + 4);
+  cx.closePath();
+  cx.fill();
+
+  // Original hair color tint on top
+  cx.fillStyle = a.hair;
+  cx.globalAlpha = (g.alpha || 1) * 0.35;
+  cx.beginPath();
+  cx.ellipse(x, y - 16, 8, 5, 0, Math.PI, Math.PI * 2);
+  cx.fill();
+
+  // Eyes
+  cx.globalAlpha = (g.alpha || 1) * 0.9;
+  cx.fillStyle = '#1e1b4b';
+  cx.beginPath(); cx.ellipse(x - 4, y - 9, 3, 4, 0, 0, Math.PI * 2); cx.fill();
+  cx.beginPath(); cx.ellipse(x + 4, y - 9, 3, 4, 0, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = '#fff';
+  cx.beginPath(); cx.arc(x - 3, y - 10, 1.2, 0, Math.PI * 2); cx.fill();
+  cx.beginPath(); cx.arc(x + 5, y - 10, 1.2, 0, Math.PI * 2); cx.fill();
+
+  // Name tag
+  cx.font = '8px sans-serif';
+  cx.fillStyle = '#e9d5ff';
+  cx.textAlign = 'center';
+  cx.fillText('👻' + g.name, x, y - 28);
+  cx.textAlign = 'left';
+
+  cx.restore();
+}
+
+// ══════════════════════════════════════════════════════════
+// STAFF
+// ══════════════════════════════════════════════════════════
+function hire(type){
+  const cost=SALARY[type];
+  if(G.money<cost){notify('💸 资金不足！','r');return;}
+  G.money-=cost;
+  const app=mkStaffAppearance(type);
+  const name=genStaffName(type,app);
+  const id=Date.now()+Math.random()*1000; // unique stable id
+  const s={
+    id, type, name, roomId:null,
+    fatigue:0, anim:Math.random()*Math.PI*2, appearance:app,
+    resting:false, prevRoomId:null, exp:0, skill:1.0,
+    wx:type==='janitor'?T*3:0, wy:type==='janitor'?ROWS*T*0.5:0,
+    jstate:'idle', jtarget:null, jTimer:0, _roamTimer:0,
+  };
+  if(type!=='janitor'){
+    const needsThis=Object.entries(RDEFS).filter(([,d])=>d.need===type).map(([k])=>k);
+    const room=G.rooms.find(rm=>needsThis.includes(rm.type)&&rm.staffIds.length<RDEFS[rm.type].maxStaff);
+    if(room){room.staffIds.push(id);s.roomId=room.id;notify(`✅ ${name}入职${RDEFS[room.type].name}`,'g');}
+    else{notify(`✅ 雇用了${name}（暂无空房间，等待分配）`,'y');}
+  } else {
+    notify(`✅ 雇用了清洁工${name}！`,'g');
+  }
+  G.staff.push(s);
+  refreshList(); refreshStaffPanel();
+}
+
+// ══════════════════════════════════════════════════════════
+// JANITOR AI
+// ══════════════════════════════════════════════════════════
+function tickJanitor(st,dt){
+  st.anim=(st.anim||0)+dt*0.04;
+  if(st.resting){
+    st.fatigue=Math.max(0,st.fatigue-dt*0.05);
+    if(st.fatigue<15){
+      st.resting=false;
+      notify(`✅ ${st.name}休息好了，继续清扫！`,'g');
+    }
+    return;
+  }
+  st.fatigue=Math.min(100,st.fatigue+dt*0.012);
+  if(st.fatigue>=80){
+    const br=G.rooms.find(r=>r.type==='breakroom');
+    if(br){
+      const p=rmPx(br);
+      st.wx=p.x; st.wy=p.y; st.resting=true;
+      st.jstate='idle'; st.jtarget=null;
+      notify(`😓 ${st.name}去休息...`,'y'); return;
+    }
+  }
+  const spd=1.4;
+  if(st.jstate==='idle'){
+    let best=null, bestDist=Infinity;
+    // Ghosts are highest priority
+    G.ghosts.forEach((gh,i)=>{
+      const dx=gh.x-st.wx, dy=gh.y-st.wy;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<bestDist){bestDist=dist;best={type:'ghost',idx:i};}
+    });
+    G.dirts.forEach((d,i)=>{
+      const dx=d.x-st.wx, dy=d.y-st.wy;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<bestDist){bestDist=dist;best={type:'dirt',idx:i};}
+    });
+    CORRIDOR_OBJS.filter(o=>o.type==='bin'&&o.fill>75).forEach(o=>{
+      const dx=o.x-st.wx, dy=o.y-st.wy;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<bestDist){bestDist=dist;best={type:'bin',obj:o};}
+    });
+    if(best){st.jtarget=best;st.jstate='going';}
+    else{
+      st._roamTimer-=dt;
+      if(st._roamTimer<=0){
+        st._roamTimer=200+Math.random()*300;
+        // Roam to random open area
+        for(let i=0;i<20;i++){
+          const rx=(1+Math.random()*(COLS-2))*T, ry=(1+Math.random()*(ROWS-2))*T;
+          if(isOpenTile(rx,ry)){st.wx=rx;st.wy=ry;break;}
+        }
+      } else {
+        // Drift slowly toward target roam position (already set)
+        // (already moving via going logic if set; idle means just stay put)
+      }
+    }
+  }
+  if(st.jstate==='going'){
+    let tx,ty;
+    if(st.jtarget.type==='dirt'){
+      const d=G.dirts[st.jtarget.idx];
+      if(!d){st.jstate='idle';st.jtarget=null;return;}
+      tx=d.x;ty=d.y;
+    } else if(st.jtarget.type==='ghost'){
+      const gh=G.ghosts[st.jtarget.idx];
+      if(!gh){st.jstate='idle';st.jtarget=null;return;}
+      // Ghosts move — track them live
+      tx=gh.x;ty=gh.y;
+    } else {
+      tx=st.jtarget.obj.x;ty=st.jtarget.obj.y;
+    }
+    const dx=tx-st.wx,dy=ty-st.wy,dist=Math.sqrt(dx*dx+dy*dy);
+    const chaseSpd=st.jtarget.type==='ghost'?spd*1.6:spd; // faster when chasing ghost
+    if(dist<14){st.jstate='working';st.jTimer=st.jtarget.type==='ghost'?80:50+Math.random()*30;}
+    else{st.wx+=dx/dist*chaseSpd;st.wy+=dy/dist*chaseSpd;}
+  }
+  if(st.jstate==='working'){
+    st.jTimer-=dt;
+    if(st.jTimer<=0){
+      if(st.jtarget.type==='dirt'){
+        const idx=G.dirts.findIndex((_,i)=>i===st.jtarget.idx);
+        if(idx>=0){G.dirts.splice(idx,1);st.exp=(st.exp||0)+3;}
+      } else if(st.jtarget.type==='ghost'){
+        const idx=st.jtarget.idx;
+        const gh=G.ghosts[idx];
+        if(gh){
+          spawnParticles(gh.x,gh.y,'#a78bfa',14);
+          spawnFloat(gh.x,gh.y-10,'✨ 驱鬼成功！+声誉','#a78bfa');
+          G.ghosts.splice(idx,1);
+          G.rep=Math.min(100,G.rep+3);
+          notify(`✨ ${st.name}成功驱走了${gh.name}的幽灵！声誉+3`,'p');
+          st.exp=(st.exp||0)+20;
+        }
+      } else if(st.jtarget.type==='bin'){
+        st.jtarget.obj.fill=0;
+        notify(`🗑️ ${st.name}倒空了垃圾桶`,'g');
+        st.exp=(st.exp||0)+5;
+      }
+      st.jstate='idle';st.jtarget=null;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// PATIENTS
+// ══════════════════════════════════════════════════════════
+function spawnPatient(diff=1){
+  const rareChance=Math.min(0.6,(G.rep>60?0.1:0)+Math.max(0,(diff-1)*0.12));
+  const pool=DISEASES.filter(d=>!d.rare||Math.random()<rareChance);
+  const disease=pick(pool);
+  const patienceScale=Math.max(0.4,1-((diff-1)*0.07));
+  // Make a copy of steps so we can modify per-patient
+  const steps=[...disease.steps];
+  // 30% chance patient needs toilet after reception
+  if(Math.random()<0.30){
+    const recIdx=steps.indexOf('reception');
+    if(recIdx>=0) steps.splice(recIdx+1,0,'toilet');
+  }
+  const p={
+    id:G.pid++, name:pick(PNAMES),
+    disease:{...disease,steps},
+    step:0, state:'walk',
+    x:-20, y:T*3+Math.random()*(ROWS-6)*T,
+    tx:0,ty:0, roomId:null,
+    patience:(350+Math.random()*350)*patienceScale,
+    maxPat:(350+175)*patienceScale,
+    color:pick(PAT_COLORS), anim:Math.random()*Math.PI*2,
+    emergency:Math.random()<Math.min(0.4,0.08+((diff-1)*0.04)),
+    chairX:null,chairY:null,
+    lyingDown:false, bedSlot:-1,
+    appearance:mkAppearance(),
+  };
+  if(p.emergency) p.patience*=0.5;
+  G.patients.push(p);
+  assignNext(p);
+}
+
+function resolveTreatment(p,rm){
+  const roomStaff=G.staff.filter(s=>s.roomId===rm.id&&!s.resting);
+  const avgSkill=roomStaff.length>0?roomStaff.reduce((s,st)=>s+(st.skill||1),0)/roomStaff.length:1.0;
+  const avgFatigue=roomStaff.length>0?roomStaff.reduce((s,st)=>s+st.fatigue,0)/roomStaff.length:0;
+  let successRate=0.72+avgSkill*0.12;
+  successRate-=(avgFatigue/100)*0.20;
+  if(p.disease.rare) successRate-=0.10;
+  if(p.emergency) successRate-=0.05;
+  successRate=Math.max(0.30,Math.min(0.97,successRate));
+  const deathRate=(1-successRate)*0.22;
+  const roll=Math.random();
+  if(roll<successRate) return{outcome:'success'};
+  if(roll<successRate+deathRate) return{outcome:'death'};
+  return{outcome:'fail'};
+}
+
+function gainExp(rm,amount){
+  G.staff.filter(s=>s.roomId===rm.id&&!s.resting).forEach(st=>{
+    st.exp=(st.exp||0)+amount;
+    const newSkill=Math.min(2.0,1.0+Math.floor(st.exp/500)*0.1);
+    if(newSkill>st.skill+0.05){
+      st.skill=newSkill;
+      const lv=Math.round((st.skill-1.0)*10);
+      notify(`⬆️ ${st.name}技能LV${lv}！`,'p');
+    } else {st.skill=Math.max(st.skill,newSkill);}
+  });
+}
+
+// Count all patients assigned to a room (walking + waiting + treating)
+function patLoad(rm){
+  return G.patients.filter(p=>p.roomId===rm.id&&p.state!=='leave').length;
+}
+
+function getRm(type){
+  function pickLeast(pool){
+    // Sort by patLoad ascending, then pick randomly among those tied for min
+    if(!pool.length) return null;
+    const minLoad=Math.min(...pool.map(r=>patLoad(r)));
+    const tied=pool.filter(r=>patLoad(r)===minLoad);
+    return tied[Math.floor(Math.random()*tied.length)];
+  }
+  if(type==='toilet'){
+    const pool=G.rooms.filter(r=>r.type==='toilet'&&!G.blackout);
+    return pickLeast(pool);
+  }
+  const pool=G.rooms.filter(r=>r.type===type&&r.staffIds.length>0&&!G.blackout);
+  if(!pool.length) return null;
+  if(type==='ward'){
+    const open=pool.filter(r=>r.slots.length<r.staffIds.length);
+    return pickLeast(open.length?open:pool);
+  }
+  return pickLeast(pool);
+}
+
+function rebalanceQueues(){
+  // For each room type with 2+ staffed rooms, redistribute waiting patients evenly
+  const typeSet=new Set(G.rooms.map(r=>r.type));
+  typeSet.forEach(type=>{
+    if(RDEFS[type].maxStaff===0) return;
+    const pool=G.rooms.filter(r=>r.type===type&&r.staffIds.length>0);
+    if(pool.length<2) return;
+
+    // Keep iterating until load is balanced (max difference <= 2)
+    let iterations=0;
+    while(iterations++<30){
+      const loads=pool.map(r=>({rm:r,load:patLoad(r)}));
+      const maxEntry=loads.reduce((a,b)=>a.load>b.load?a:b);
+      const minEntry=loads.reduce((a,b)=>a.load<b.load?a:b);
+      if(maxEntry.load-minEntry.load<=2) break;
+
+      // Skip the patient currently being treated (queue[0] if busy)
+      const protectedId=maxEntry.rm.busy?maxEntry.rm.queue[0]:null;
+      const movable=G.patients.filter(p=>
+        p.roomId===maxEntry.rm.id&&
+        p.state==='wait'&&
+        p.id!==protectedId
+      );
+      if(!movable.length) break;
+
+      // Move the last waiter (least imminent) to the least loaded room
+      const p=movable[movable.length-1];
+      maxEntry.rm.queue=maxEntry.rm.queue.filter(id=>id!==p.id);
+      p.roomId=minEntry.rm.id;
+      const px=rmPx(minEntry.rm);
+      p.tx=px.x+(Math.random()-0.5)*T*minEntry.rm.w*0.3;
+      p.ty=px.y+(Math.random()-0.5)*T*minEntry.rm.h*0.3;
+      p.state='walk';
+    }
+  });
+}
+function rmPx(rm){return{x:(rm.c+rm.w/2)*T,y:(rm.r+rm.h/2)*T};}
+
+function assignNext(p,fromRm){
+  if(p.step>=p.disease.steps.length){
+    const res=fromRm?resolveTreatment(p,fromRm):{outcome:'success'};
+    if(res.outcome==='success'){
+      p.state='leave';p.tx=COLS*T+60;p.ty=p.y;
+      G.cured++;
+      const pay=Math.round(p.disease.pay*(G.bonusPay||1)*(G.internMode?0.85:1));
+      G.money+=pay;G.rep=Math.min(100,G.rep+1);
+      spawnFloat(p.x,p.y,'+$'+pay,'#4ade80');
+      spawnParticles(p.x,p.y,'#4ade80',8);
+      spawnHearts(p.x,p.y);
+      notify(`🎉 ${p.name}《${p.disease.name}》治愈！+$${pay}`,'g');
+      if(fromRm) gainExp(fromRm,15);
+      checkGoal();
+    } else if(res.outcome==='death'){
+      G.died++;G.rep=Math.max(0,G.rep-3);
+      spawnFloat(p.x,p.y,'💀 不治身亡 -3声誉','#ef4444');
+      spawnParticles(p.x,p.y,'#ef4444',12);
+      notify(`💀 ${p.name}不治身亡！变成幽灵游荡！`,'r');
+      spawnDirt(p.x,p.y); spawnDirt(p.x,p.y);
+      // Spawn ghost
+      spawnGhost(p.x, p.y, p.name, p.appearance);
+      G.patients=G.patients.filter(x=>x.id!==p.id);
+      if(fromRm) gainExp(fromRm,3);
+    } else {
+      G.failed++;G.rep=Math.max(0,G.rep-2);
+      const halfPay=Math.floor(p.disease.pay*0.4);
+      G.money+=halfPay;
+      p.state='leave';p.tx=COLS*T+60;p.ty=p.y;
+      spawnFloat(p.x,p.y,`❌ 失败 +$${halfPay}`,'#f97316');
+      notify(`❌ ${p.name}治疗失败！退款$${halfPay}`,'r');
+      if(fromRm) gainExp(fromRm,5);
+    }
+    return;
+  }
+  const type=p.disease.steps[p.step];
+  const rm=getRm(type);
+  if(!rm){
+    p.tx=T*3+Math.random()*(COLS-6)*T;p.ty=T*3+Math.random()*(ROWS-6)*T;
+    p.roomId=null;p.state='walk';
+    setTimeout(()=>{if(p.state==='walk'&&!p.roomId)assignNext(p);},2500);
+    return;
+  }
+  p.roomId=rm.id;
+  const px=rmPx(rm);
+  p.tx=px.x+(Math.random()-0.5)*T*rm.w*0.3;
+  p.ty=px.y+(Math.random()-0.5)*T*rm.h*0.3;
+  p.state='walk';
+}
+
+function tickP(p,dt){
+  if(G.over) return;
+  p.anim+=dt*0.06;
+  const drain=p.state==='treat'?0.005:p.state==='wait'?0.025:0.01;
+  p.patience-=dt*drain*(p.emergency?1.6:1);
+  // Don't abort mid-treatment on patience — that permanently deadlocks rm.busy
+  if(p.patience<=0&&p.state!=='leave'&&p.state!=='treat'){angryleave(p);return;}
+  const spd=1.6+(p.emergency?0.6:0);
+  if(p.state==='walk'){
+    const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<4){
+      p.x=p.tx;p.y=p.ty;
+      if(p.roomId){
+        const rm=G.rooms.find(r=>r.id===p.roomId);
+        if(rm){rm.queue.push(p.id);p.state='wait';}
+        else{p.roomId=null;assignNext(p);}
+      }
+    }else{p.x+=dx/d*spd;p.y+=dy/d*spd;}
+  }
+  if(p.state==='wait'){
+    const rm=G.rooms.find(r=>r.id===p.roomId);
+    if(!rm){angryleave(p);return;}
+    // Toilet needs no staff
+    const needsStaff=RDEFS[rm.type].maxStaff>0;
+    if(needsStaff&&rm.staffIds.length===0){angryleave(p);return;}
+    if(rm.type==='ward'){
+      if(rm.slots.length<rm.staffIds.length&&rm.queue[0]===p.id&&!G.blackout){
+        rm.queue.shift();
+        const slot={patId:p.id,timer:RDEFS['ward'].treatTime+Math.random()*80};
+        rm.slots.push(slot);p.state='treat';p.lyingDown=true;
+        const bedIdx=rm.slots.length-1;
+        p.tx=(rm.c+1.2+bedIdx*2.2)*T;p.ty=(rm.r+2.0)*T;
+      }
+    } else {
+      if(rm.queue[0]===p.id&&!rm.busy&&!G.blackout){
+        rm.busy=true;rm.timer=RDEFS[rm.type].treatTime+Math.random()*40;p.state='treat';
+      }
+    }
+  }
+  if(p.state==='treat'){
+    if(p.lyingDown){
+      const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d>4){p.x+=dx/d*spd;p.y+=dy/d*spd;}
+    }
+    const rm=G.rooms.find(r=>r.id===p.roomId);
+    if(!rm||G.blackout){p.state='wait';return;}
+    // If room lost all its staff mid-treatment, pause treatment
+    if(RDEFS[rm.type].maxStaff>0&&rm.staffIds.length===0){
+      p.state='wait';
+      if(rm.type!=='ward'){rm.busy=false;}
+      else{rm.slots=rm.slots.filter(s=>s.patId!==p.id);p.lyingDown=false;}
+      return;
+    }
+    if(rm.type==='ward'){
+      const slot=rm.slots.find(s=>s.patId===p.id);
+      if(!slot) return;
+      slot.timer-=dt;
+      if(slot.timer<=0){
+        rm.slots=rm.slots.filter(s=>s.patId!==p.id);
+        rm.totalTreated++;p.step++;p.roomId=null;p.lyingDown=false;
+        spawnParticles(p.x,p.y,'#a78bfa',5);gainExp(rm,5);assignNext(p,rm);
+      }
+    } else {
+      rm.timer-=dt;
+      if(rm.timer<=0){
+        rm.busy=false;rm.queue.shift();rm.totalTreated++;
+        p.step++;p.roomId=null;
+        spawnParticles(p.x,p.y,'#a78bfa',5);gainExp(rm,5);assignNext(p,rm);
+      }
+    }
+  }
+  if(p.state==='leave'){
+    p.x+=spd*1.8;
+    if(p.x>COLS*T+60) G.patients=G.patients.filter(x=>x.id!==p.id);
+  }
+}
+
+function angryleave(p){
+  if(p.roomId){
+    const rm=G.rooms.find(r=>r.id===p.roomId);
+    if(rm){
+      // If this patient was the one being actively treated, release the busy lock
+      const wasTreating=p.state==='treat'&&!p.lyingDown&&rm.queue[0]===p.id;
+      rm.queue=rm.queue.filter(id=>id!==p.id);
+      if(rm.type==='ward') rm.slots=rm.slots.filter(s=>s.patId!==p.id);
+      if(wasTreating){rm.busy=false;rm.timer=0;}
+    }
+  }
+  p.state='leave';p.lyingDown=false;
+  G.rep=Math.max(0,G.rep-2);
+  spawnFloat(p.x,p.y,'😤-2声誉','#f59e0b');
+  notify(`😤 ${p.name}不耐烦离开！声誉-2`,'y');
+}
+
+// 员工离岗后，将排队病人重新分配到同类其他房间
+function reassignPatients(rm){
+  if(!rm) return;
+  // Collect all patients tied to this room (queued + walking toward it + treat)
+  const affected=G.patients.filter(p=>
+    p.roomId===rm.id&&p.state!=='leave'&&
+    (rm.queue.includes(p.id)||p.state==='walk'||p.state==='wait'||p.state==='treat')
+  );
+  if(affected.length===0) return;
+  rm.queue=[];
+  if(rm.type!=='ward'){rm.busy=false;rm.timer=0;}
+  else{rm.slots=[];} // clear ward slots too
+  affected.forEach(p=>{
+    if(p.state==='leave') return;
+    p.lyingDown=false;p.roomId=null;
+    const alt=G.rooms.find(r=>r.id!==rm.id&&r.type===rm.type&&r.staffIds.length>0);
+    if(alt){
+      p.roomId=alt.id;
+      const px=rmPx(alt);
+      p.tx=px.x+(Math.random()-0.5)*T*alt.w*0.3;
+      p.ty=px.y+(Math.random()-0.5)*T*alt.h*0.3;
+      p.state='walk';
+      notify(`🔀 ${p.name}转至其他${RDEFS[rm.type].name}`,'y');
+    } else {
+      p.state='walk';
+      p.tx=T*3+Math.random()*(COLS-6)*T;p.ty=T*3+Math.random()*(ROWS-6)*T;
+      setTimeout(()=>{if(p.state==='walk'&&!p.roomId)assignNext(p);},2000);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// GOAL CHECK
+// ══════════════════════════════════════════════════════════
+function checkGoal(){
+  if(G.goalIdx>=YEAR_GOALS.length) return;
+  const g=YEAR_GOALS[G.goalIdx];
+  if(G.cured>=g.cure&&G.rep>=g.rep&&!G.goalComplete){
+    G.goalComplete=true;G.money+=g.reward;
+    const banner=document.getElementById('goal-banner');
+    banner.textContent=`🏆 目标达成！奖励$${g.reward.toLocaleString()}！`;
+    banner.style.display='block';
+    setTimeout(()=>{banner.style.display='none';},4000);
+    G.goalIdx++;G.goalComplete=false;updateGoalHUD();
+    notify(`🏆 目标达成！奖励$${g.reward.toLocaleString()}`,'p');
+    spawnParticles(COLS*T/2,ROWS*T/2,'#ffd700',30);
+  }
+}
+function updateGoalHUD(){
+  const g=YEAR_GOALS[G.goalIdx];
+  document.getElementById('h-goal').textContent=g?`目标：${g.label}`:'🏆 全部目标完成！';
+}
+
+// ══════════════════════════════════════════════════════════
+// PARTICLES & FLOATS
+// ══════════════════════════════════════════════════════════
+const MAX_PARTICLES=120;
+function spawnParticles(x,y,color,n){
+  for(let i=0;i<n;i++){
+    if(G.particles.length>=MAX_PARTICLES) break;
+    const a=Math.random()*Math.PI*2,spd=1+Math.random()*3;
+    G.particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:1,color});
+  }
+}
+function spawnFloat(x,y,text,color){G.floats.push({x,y,text,color,life:1,vy:-1});}
+function spawnHearts(x,y){
+  const colors=['#ff69b4','#ff1493','#ff6eb4','#ffb6c1','#ff4500'];
+  for(let i=0;i<6;i++){
+    const a=(Math.random()-0.5)*1.8;
+    const spd=1.2+Math.random()*1.4;
+    G.floats.push({x:x+(Math.random()-0.5)*20,y,text:'❤',color:colors[i%colors.length],
+      life:1,vy:-spd,vx:Math.sin(a)*0.8,isHeart:true});
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════════════════
+let pendingEvent=null;
+function triggerEvent(){
+  const ev=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  pendingEvent=ev;
+  document.getElementById('ep-title').textContent=ev.title;
+  document.getElementById('ep-body').textContent=ev.body;
+  document.getElementById('event-pop').style.display='block';
+}
+function closeEvent(){
+  if(pendingEvent){pendingEvent.fn(G);pendingEvent=null;}
+  document.getElementById('event-pop').style.display='none';
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAW: CORRIDOR FURNITURE
+// ══════════════════════════════════════════════════════════
+function drawCorridorObj(obj){
+  const {type,x,y}=obj;
+  if(type==='bench'){
+    cx.fillStyle='#3d2a10';cx.fillRect(x-12,y,24,5);cx.fillRect(x-12,y-7,24,3);
+    cx.fillStyle='#5a3f18';cx.fillRect(x-12,y,2,8);cx.fillRect(x+10,y,2,8);
+  } else if(type==='vending'){
+    cx.fillStyle='#1a3a1a';cx.fillRect(x-8,y-20,16,22);
+    cx.strokeStyle='#2a5a2a';cx.lineWidth=1;cx.strokeRect(x-8,y-20,16,22);
+    cx.fillStyle='#002200';cx.fillRect(x-6,y-18,12,10);
+    ['#ff4444','#44ff44','#ffff00','#44aaff'].forEach((c,i)=>{
+      cx.fillStyle=c;cx.beginPath();cx.arc(x-4.5+i*3,y-13,1.2,0,Math.PI*2);cx.fill();
+    });
+    cx.fillStyle='#444';cx.fillRect(x-3,y-5,6,2);
+  } else if(type==='bin'){
+    const fill=obj.fill||0;
+    const urgent=fill>80;
+    cx.fillStyle=urgent?'#3d0000':fill>50?'#2a1a00':'#1a1a1a';
+    cx.fillRect(x-7,y-14,14,16);
+    cx.strokeStyle=urgent?'#ef4444':'#333';cx.lineWidth=1;cx.strokeRect(x-7,y-14,14,16);
+    cx.fillStyle='#333';cx.fillRect(x-8,y-16,16,4);
+    // Trash icon
+    cx.font='10px serif';cx.textAlign='center';cx.fillText('🗑️',x,y-4);cx.textAlign='left';
+    // Fill bar
+    if(fill>0){
+      cx.fillStyle='rgba(0,0,0,0.6)';cx.fillRect(x-6,y+4,12,3);
+      cx.fillStyle=urgent?'#ef4444':'#f59e0b';
+      cx.fillRect(x-6,y+4,12*(fill/100),3);
+    }
+    if(urgent){
+      cx.font='8px sans-serif';cx.fillStyle='#ef4444';cx.textAlign='center';
+      cx.fillText('满',x,y-17);cx.textAlign='left';
+    }
+  } else if(type==='arcade'){
+    const t=obj.anim||0;
+    // Cabinet body
+    cx.fillStyle='#1a0030';cx.fillRect(x-10,y-26,20,30);
+    cx.strokeStyle='#7c3aed';cx.lineWidth=1.5;cx.strokeRect(x-10,y-26,20,30);
+    // Screen (animated colors)
+    const scr=['#00ffcc','#ff0066','#ffff00','#00aaff'];
+    cx.fillStyle=scr[Math.floor(t*0.5)%scr.length];
+    cx.fillRect(x-7,y-23,14,13);
+    // Scanline effect
+    cx.fillStyle='rgba(0,0,0,0.3)';
+    for(let i=0;i<6;i++) cx.fillRect(x-7,y-23+i*2,14,1);
+    // Blinking pixel art
+    cx.fillStyle='#fff';
+    if(Math.floor(t)%2===0){cx.fillRect(x-4,y-19,3,3);cx.fillRect(x+1,y-17,3,3);}
+    else{cx.fillRect(x-2,y-17,3,3);cx.fillRect(x+2,y-19,3,3);}
+    // Joystick
+    cx.fillStyle='#444';cx.fillRect(x-8,y+5,7,4);
+    cx.fillStyle='#ef4444';cx.beginPath();cx.arc(x-5,y+4,3,0,Math.PI*2);cx.fill();
+    // Buttons
+    ['#ef4444','#4ade80','#3b82f6'].forEach((c,i)=>{
+      cx.fillStyle=c;cx.beginPath();cx.arc(x+2+i*4,y+7,2,0,Math.PI*2);cx.fill();
+    });
+    // Coin slot
+    cx.fillStyle='#555';cx.fillRect(x-3,y-27,6,2);
+    // Glow
+    cx.shadowColor='#7c3aed';cx.shadowBlur=8;
+    cx.strokeStyle='#a855f7';cx.lineWidth=1;cx.strokeRect(x-7,y-23,14,13);
+    cx.shadowBlur=0;
+    // Label
+    cx.font='6px sans-serif';cx.fillStyle='#c4b5fd';cx.textAlign='center';
+    cx.fillText('GAME',x,y+18);cx.textAlign='left';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAW: DIRT
+// ══════════════════════════════════════════════════════════
+// Arcade tick (update anim in game loop)
+function tickArcades(dt){
+  CORRIDOR_OBJS.forEach(o=>{if(o.type==='arcade') o.anim=(o.anim||0)+dt*0.08;});
+}
+function drawDirt(d){
+  cx.globalAlpha=0.55;
+  cx.fillStyle='#3d2a10';
+  cx.beginPath();cx.ellipse(d.x,d.y,7,4,d.angle,0,Math.PI*2);cx.fill();
+  cx.fillStyle='#2a1a00';
+  cx.beginPath();cx.ellipse(d.x+4,d.y+2,3,2,d.angle+0.5,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(d.x-3,d.y+3,2,1.5,d.angle+1,0,Math.PI*2);cx.fill();
+  cx.globalAlpha=1;
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAW: ROOMS
+// ══════════════════════════════════════════════════════════
+function drawRoom(rm){
+  const d=RDEFS[rm.type];
+  const x=rm.c*T,y=rm.r*T,w=rm.w*T,h=rm.h*T;
+  const hasStaff=rm.staffIds.length>0||d.maxStaff===0;
+
+  // Drop shadow
+  cx.fillStyle='rgba(0,0,0,0.45)';cx.fillRect(x+4,y+4,w-2,h-2);
+
+  // Room fill
+  cx.fillStyle=d.bg;cx.fillRect(x+1,y+1,w-2,h-2);
+
+  // Inner floor tile pattern
+  cx.save();cx.beginPath();cx.rect(x+2,y+20,w-4,h-22);cx.clip();
+  const tileS=T*0.5;
+  for(let tr=0;tr<Math.ceil(h/tileS)+1;tr++){
+    for(let tc=0;tc<Math.ceil(w/tileS)+1;tc++){
+      if((tr+tc)%2===0){
+        cx.fillStyle='rgba(255,255,255,0.025)';
+        cx.fillRect(x+tc*tileS,y+20+tr*tileS,tileS,tileS);
+      }
+    }
+  }
+  cx.restore();
+
+  // Active glow
+  if(rm.busy||rm.slots.length>0){
+    cx.fillStyle='rgba(74,222,128,0.06)';cx.fillRect(x+1,y+1,w-2,h-2);
+  }
+
+  // Furniture
+  cx.save();cx.beginPath();cx.rect(x+2,y+20,w-4,h-22);cx.clip();
+  drawFurniture(rm,x,y,w,h);
+  cx.restore();
+
+  drawStaffInRoom(rm);
+
+  // Border — double line for premium look
+  cx.strokeStyle=hasStaff?d.bd:'#7c5a00';
+  cx.lineWidth=hasStaff?2:1.5;
+  cx.strokeRect(x+1,y+1,w-2,h-2);
+  // Inner highlight line
+  cx.strokeStyle=hasStaff?shade(d.bd,40)+'44':'rgba(255,200,0,0.1)';
+  cx.lineWidth=1;cx.strokeRect(x+3,y+3,w-6,h-6);
+
+  // Wall top edge highlight
+  cx.fillStyle='rgba(255,255,255,0.07)';cx.fillRect(x+2,y+2,w-4,2);
+
+  // Door
+  const doorW=T*1.1,doorX=x+w/2-doorW/2;
+  cx.fillStyle='#050a14';cx.fillRect(doorX,y+h-3,doorW,4);
+  cx.fillStyle=d.bd;cx.fillRect(doorX,y+h-3,doorW,2);
+  // Door frame
+  cx.strokeStyle=shade(d.bd,20);cx.lineWidth=1;
+  cx.strokeRect(doorX-1,y+h-T*0.52,doorW+2,T*0.52);
+
+  // Header gradient
+  const hdrGrad=cx.createLinearGradient(x,y+2,x,y+22);
+  hdrGrad.addColorStop(0,'rgba(0,0,0,0.82)');hdrGrad.addColorStop(1,'rgba(0,0,0,0.4)');
+  cx.fillStyle=hdrGrad;cx.fillRect(x+2,y+2,w-4,20);
+  // Header accent line
+  cx.fillStyle=d.bd+'99';cx.fillRect(x+2,y+2,w-4,1.5);
+  cx.fillStyle='#e8eeff';cx.font='bold 11px Segoe UI,sans-serif';
+  cx.fillText(d.icon+' '+d.name,x+5,y+15);
+
+  // Status bar area
+  cx.font='9px Segoe UI,sans-serif';
+  if(!hasStaff){
+    cx.fillStyle='rgba(0,0,0,0.5)';cx.fillRect(x+2,y+h-20,w-4,18);
+    cx.fillStyle='#fbbf24';cx.fillText('⚠ 需要 '+(d.need?SNEED[d.need]:'—'),x+5,y+h-8);
+  } else {
+    if(rm.type==='ward'){
+      const pct=rm.staffIds.length>0?rm.slots.length/rm.staffIds.length:0;
+      cx.fillStyle='rgba(0,0,0,0.45)';cx.fillRect(x+4,y+h-22,w-8,5);
+      cx.fillStyle='#06b6d4';cx.fillRect(x+4,y+h-22,(w-8)*pct,5);
+      cx.fillStyle='rgba(255,255,255,0.55)';cx.font='7px sans-serif';
+      cx.fillText(`床位 ${rm.slots.length}/${rm.staffIds.length}`,x+5,y+h-24);
+    } else if(rm.type==='toilet'){
+      cx.fillStyle=rm.busy?'#a78bfa':'#22c55e';
+      cx.fillText(rm.busy?'🚽 使用中':'✓ 空闲',x+5,y+h-14);
+    } else if(rm.busy){
+      const pct=Math.max(0,Math.min(1,rm.timer/RDEFS[rm.type].treatTime));
+      cx.fillStyle='rgba(0,0,0,0.45)';cx.fillRect(x+4,y+h-22,w-8,5);
+      const barGrad=cx.createLinearGradient(x+4,0,x+4+(w-8)*(1-pct),0);
+      barGrad.addColorStop(0,'#4ade80');barGrad.addColorStop(1,'#22d3ee');
+      cx.fillStyle=barGrad;cx.fillRect(x+4,y+h-22,(w-8)*(1-pct),5);
+    } else {
+      cx.fillStyle='#4ade80';cx.fillText('✓ 就绪',x+5,y+h-18);
+    }
+    // Fatigue bar
+    if(rm.type!=='toilet'&&rm.type!=='breakroom'){
+      const roomStaff=G.staff.filter(s=>s.roomId===rm.id);
+      if(roomStaff.length>0){
+        const avgFat=roomStaff.reduce((s,st)=>s+st.fatigue,0)/roomStaff.length;
+        cx.fillStyle='rgba(0,0,0,0.4)';cx.fillRect(x+4,y+h-14,w-8,4);
+        const fatCol=avgFat<40?'#4ade80':avgFat<70?'#fbbf24':'#f87171';
+        cx.fillStyle=fatCol;cx.fillRect(x+4,y+h-14,(w-8)*(avgFat/100),4);
+      }
+    }
+  }
+
+  // Queue badge
+  if(rm.queue.length>0){
+    cx.fillStyle='#e94560';
+    cx.beginPath();cx.arc(x+w-12,y+12,11,0,Math.PI*2);cx.fill();
+    cx.fillStyle='rgba(0,0,0,0.3)';
+    cx.beginPath();cx.arc(x+w-12,y+11,11,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#e94560';
+    cx.beginPath();cx.arc(x+w-12,y+12,10,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#fff';cx.font='bold 10px sans-serif';
+    cx.textAlign='center';cx.fillText(rm.queue.length,x+w-12,y+16);cx.textAlign='left';
+  }
+}
+
+function drawFurniture(rm,x,y,w,h){
+  cx.globalAlpha=0.65;
+  switch(rm.type){
+    case 'reception':{
+      cx.fillStyle='#4a2c00';cx.fillRect(x+14,y+32,w-28,12);
+      cx.fillStyle='#6b4200';cx.fillRect(x+14,y+30,w-28,5);
+      cx.fillStyle='#111';cx.fillRect(x+w*0.3-10,y+22,18,14);
+      cx.fillStyle='#0088ff';cx.fillRect(x+w*0.3-8,y+24,14,10);
+      cx.fillStyle='#111';cx.fillRect(x+w*0.65-10,y+22,18,14);
+      cx.fillStyle='#1100ff';cx.fillRect(x+w*0.65-8,y+24,14,10);
+      cx.fillStyle='#1a3a5f';
+      cx.fillRect(x+8,y+h-32,12,10);cx.fillRect(x+22,y+h-32,12,10);
+      break;
+    }
+    case 'gp':{
+      cx.fillStyle='#1a4a1a';cx.fillRect(x+14,y+38,w-40,14);
+      cx.fillStyle='#2a6a2a';cx.fillRect(x+14,y+36,w-40,5);
+      cx.fillStyle='#fff';cx.beginPath();cx.arc(x+22,y+40,5,0,Math.PI*2);cx.fill();
+      cx.fillStyle='#3a2000';cx.fillRect(x+w-38,y+24,28,16);
+      cx.fillStyle='#c8a000';cx.fillRect(x+w-34,y+26,18,22);
+      break;
+    }
+    case 'pharmacy':{
+      for(let i=0;i<3;i++){
+        cx.fillStyle='#3a1a00';cx.fillRect(x+8,y+24+i*14,w-16,3);
+        const cols=['#ff4444','#44ff44','#4444ff','#ffff00','#ff44ff','#00ffff'];
+        for(let j=0;j<6;j++){
+          cx.fillStyle=cols[j%6];
+          cx.fillRect(x+12+j*Math.floor((w-24)/6),y+14+i*14,Math.floor((w-24)/6)-2,11);
+        }
+      }
+      cx.fillStyle='#2a1000';cx.fillRect(x+8,y+h-32,w-16,12);
+      break;
+    }
+    case 'psychiatric':{
+      cx.fillStyle='#4a1500';cx.fillRect(x+16,y+42,w-32,12);
+      cx.fillStyle='#6b2000';cx.fillRect(x+16,y+40,w-32,5);
+      cx.fillRect(x+14,y+40,5,14);cx.fillRect(x+w-20,y+40,5,14);
+      cx.fillStyle='#4a1500';cx.fillRect(x+w-36,y+22,22,22);
+      cx.fillStyle='#6b2000';cx.fillRect(x+w-38,y+22,5,22);cx.fillRect(x+w-16,y+22,5,22);
+      cx.fillRect(x+w-38,y+20,26,5);
+      cx.fillStyle='#888';cx.fillRect(x+16,y+22,3,28);
+      cx.fillStyle='#ffd700';cx.beginPath();cx.arc(x+18,y+20,7,Math.PI,0);cx.fill();
+      break;
+    }
+    case 'ward':{
+      const numBeds=Math.floor((w-20)/(T*2.1));
+      for(let i=0;i<numBeds;i++){
+        const bx=x+10+i*Math.floor((w-20)/numBeds);
+        const bw=Math.floor((w-20)/numBeds)-4;
+        cx.fillStyle='#0a2a3a';cx.fillRect(bx,y+32,bw,T*1.2);
+        cx.fillStyle='#0d3a50';cx.fillRect(bx,y+32,bw,6);
+        cx.fillStyle='#e0f0ff';cx.fillRect(bx+2,y+34,bw*0.4,8);
+        cx.fillStyle='#b0cfe0';cx.fillRect(bx+2,y+44,bw-4,10);
+        cx.fillStyle='#2a3a4a';cx.fillRect(bx+bw-10,y+36,8,12);
+      }
+      cx.fillStyle='#1a3a5f';cx.fillRect(x+w/2-20,y+h-36,40,14);
+      cx.fillStyle='#0088ff';cx.fillRect(x+w/2-16,y+h-33,12,8);
+      break;
+    }
+    case 'research':{
+      cx.fillStyle='#2a2a00';cx.fillRect(x+8,y+24,w-16,18);
+      cx.fillStyle='#3a3a00';cx.fillRect(x+8,y+24,w-16,4);
+      ['#00ffcc','#ff6600','#8800ff','#00aaff'].forEach((c,i)=>{
+        cx.fillStyle=c;cx.globalAlpha=0.55;
+        cx.fillRect(x+14+i*Math.floor((w-28)/4),y+26,Math.floor((w-28)/4)-4,14);
+        cx.globalAlpha=0.65;
+      });
+      cx.fillStyle='#f0f0e0';cx.fillRect(x+8,y+h-36,w-16,22);
+      break;
+    }
+    case 'breakroom':{
+      cx.fillStyle='#2a1500';cx.fillRect(x+10,y+26,w-20,16);
+      cx.fillStyle='#3d2000';cx.fillRect(x+10,y+24,w-20,6);
+      cx.fillRect(x+8,y+24,6,18);cx.fillRect(x+w-14,y+24,6,18);
+      cx.fillStyle='#1a0a00';cx.fillRect(x+w/2-14,y+45,28,10);
+      cx.fillStyle='#111';cx.fillRect(x+10,y+h-36,22,22);
+      cx.fillStyle='#333';cx.fillRect(x+12,y+h-34,18,14);
+      cx.fillStyle='#c84000';cx.fillRect(x+14,y+h-30,14,6);
+      cx.fillStyle='#111';cx.fillRect(x+w-40,y+h-42,30,22);
+      cx.fillStyle='#003355';cx.fillRect(x+w-38,y+h-40,26,18);
+      break;
+    }
+    case 'toilet':{
+      cx.fillStyle='#e0e8f0';
+      cx.beginPath();cx.ellipse(x+w/2,y+h*0.6,w*0.22,h*0.22,0,0,Math.PI*2);cx.fill();
+      cx.fillStyle='#b0c0d0';
+      cx.beginPath();cx.ellipse(x+w/2,y+h*0.6,w*0.14,h*0.14,0,0,Math.PI*2);cx.fill();
+      cx.fillStyle='#d0dce8';cx.fillRect(x+w/2-w*0.15,y+h*0.3,w*0.3,h*0.18);
+      cx.fillStyle='#c8d8e8';cx.fillRect(x+4,y+24,w*0.3,12);
+      cx.fillStyle='#a0b8cc';cx.fillRect(x+6,y+26,w*0.26,8);
+      cx.fillStyle='#888';cx.fillRect(x+w*0.15-2,y+22,4,6);
+      break;
+    }
+    case 'xray':{
+      // X-ray machine (large upright unit)
+      cx.fillStyle='#002233';cx.fillRect(x+w*0.55,y+22,w*0.35,h-30);
+      cx.fillStyle='#003344';cx.fillRect(x+w*0.57,y+24,w*0.31,h-34);
+      // X-ray arm
+      cx.fillStyle='#004455';cx.fillRect(x+w*0.3,y+32,w*0.4,6);
+      cx.fillStyle='#00bcd4';cx.fillRect(x+w*0.26,y+28,16,14);
+      // Emitter glow
+      cx.shadowColor='#00d4ff';cx.shadowBlur=12;
+      cx.fillStyle='#00ffff';cx.beginPath();cx.arc(x+w*0.28,y+35,5,0,Math.PI*2);cx.fill();
+      cx.shadowBlur=0;
+      // Patient table
+      cx.fillStyle='#1a3a4a';cx.fillRect(x+8,y+h-32,w*0.45,10);
+      cx.fillStyle='#0d2a3a';cx.fillRect(x+8,y+h-34,w*0.45,4);
+      // Monitor
+      cx.fillStyle='#111';cx.fillRect(x+w*0.58,y+26,w*0.28,h*0.35);
+      cx.fillStyle='#001a00';cx.fillRect(x+w*0.6,y+28,w*0.24,h*0.3);
+      // Skeleton on screen
+      cx.font='14px serif';cx.textAlign='center';
+      cx.fillText('🩻',x+w*0.72,y+44);cx.textAlign='left';
+      break;
+    }
+    case 'surgery':{
+      // Operating table (center)
+      cx.fillStyle='#1a2a1a';cx.fillRect(x+w*0.2,y+h*0.45,w*0.6,12);
+      cx.fillStyle='#2a4a2a';cx.fillRect(x+w*0.2,y+h*0.43,w*0.6,5);
+      // Surgical lights (top, 2x)
+      cx.fillStyle='#2a2a00';cx.fillRect(x+w*0.28,y+22,16,10);cx.fillRect(x+w*0.55,y+22,16,10);
+      cx.shadowColor='#ffffaa';cx.shadowBlur=18;
+      cx.fillStyle='#ffff88';cx.beginPath();cx.arc(x+w*0.36,y+27,7,0,Math.PI*2);cx.fill();
+      cx.beginPath();cx.arc(x+w*0.63,y+27,7,0,Math.PI*2);cx.fill();
+      cx.shadowBlur=0;
+      // Instrument tray
+      cx.fillStyle='#222';cx.fillRect(x+w*0.05,y+h*0.55,w*0.12,20);
+      cx.fillStyle='#888';
+      ['|','/','-','\\'].forEach((s,i)=>{
+        cx.font='9px sans-serif';cx.textAlign='center';
+        cx.fillText(s,x+w*0.08+i*4,y+h*0.6+8);cx.textAlign='left';
+      });
+      // Heart monitor
+      cx.fillStyle='#111';cx.fillRect(x+w*0.82,y+h*0.35,w*0.14,22);
+      cx.strokeStyle='#4ade80';cx.lineWidth=1.5;cx.beginPath();
+      cx.moveTo(x+w*0.83,y+h*0.43);cx.lineTo(x+w*0.86,y+h*0.43);
+      cx.lineTo(x+w*0.87,y+h*0.37);cx.lineTo(x+w*0.88,y+h*0.49);
+      cx.lineTo(x+w*0.89,y+h*0.43);cx.lineTo(x+w*0.95,y+h*0.43);cx.stroke();
+      // Anesthesia unit
+      cx.fillStyle='#333';cx.fillRect(x+w*0.82,y+h*0.6,w*0.14,h*0.25);
+      cx.fillStyle='#555';cx.fillRect(x+w*0.84,y+h*0.62,w*0.1,h*0.1);
+      break;
+    }
+  }
+  cx.globalAlpha=1;
+}
+
+// ── Lying patient ──
+function drawLyingPatient(p){
+  const a=p.appearance;
+  const x=Math.round(p.x),y=Math.round(p.y);
+  cx.fillStyle=a.pants;cx.fillRect(x-4,y-4,22,8);
+  cx.fillStyle=a.cloth;cx.fillRect(x-4,y-4,12,8);
+  cx.fillStyle=a.skin;cx.beginPath();cx.ellipse(x-8,y,5,6,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle='#fff';cx.beginPath();cx.ellipse(x-8,y-1.5,1.5,1,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.eyeColor;cx.beginPath();cx.arc(x-8,y-1.5,0.8,0,Math.PI*2);cx.fill();
+  cx.font='9px serif';cx.textAlign='center';cx.fillText(p.disease.icon,x+5,y-12);cx.textAlign='left';
+  const pat=Math.max(0,p.patience/p.maxPat);
+  cx.fillStyle='rgba(0,0,0,0.5)';cx.fillRect(x-14,y-20,24,3);
+  cx.fillStyle=pat>0.5?'#4ade80':pat>0.28?'#ffd700':'#ef4444';
+  cx.fillRect(x-14,y-20,24*pat,3);
+}
+
+// ── Staff sprite ──
+function drawStaffSprite(x,y,st){
+  const a=st.appearance;
+  const fatigue=st.fatigue||0;
+  const bob=Math.sin(st.anim)*0.8;
+  const sy=Math.round(y+bob),sx=Math.round(x);
+  const sc=0.82;
+  function sr(dx,dy,w,h){cx.fillRect(sx+dx*sc,sy+dy*sc,w*sc,h*sc);}
+  cx.fillStyle=a.shoes;
+  cx.beginPath();cx.ellipse(sx-4*sc,sy+11*sc,4*sc,1.8*sc,0.15,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(sx+4*sc,sy+11*sc,4*sc,1.8*sc,-0.15,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.pants;sr(-6,3,4,9);sr(2,3,4,9);
+  cx.fillStyle=a.cloth;sr(-6,-9,12,12);
+  if(a.hasLabCoat){cx.fillStyle='rgba(255,255,255,0.85)';sr(-6,-9,12,12);}
+  if(a.hasStethoscope){
+    cx.strokeStyle='#888';cx.lineWidth=1.2;
+    cx.beginPath();cx.arc(sx,sy-4*sc,5*sc,Math.PI*1.2,Math.PI*1.8);cx.stroke();
+    cx.fillStyle='#aaa';cx.beginPath();cx.arc(sx,sy+1*sc,2*sc,0,Math.PI*2);cx.fill();
+  }
+  if(a.hasMop){
+    // Mop handle
+    cx.strokeStyle='#8b6914';cx.lineWidth=2;
+    cx.beginPath();cx.moveTo(sx+6*sc,sy-8*sc);cx.lineTo(sx+14*sc,sy+14*sc);cx.stroke();
+    // Mop head
+    cx.fillStyle='#aaa';cx.beginPath();cx.ellipse(sx+14*sc,sy+14*sc,5*sc,2*sc,0.4,0,Math.PI*2);cx.fill();
+    cx.strokeStyle='#888';cx.lineWidth=0.8;
+    for(let i=-3;i<=3;i+=2){
+      cx.beginPath();cx.moveTo(sx+(12+i)*sc,sy+13*sc);cx.lineTo(sx+(14+i)*sc,sy+17*sc);cx.stroke();
+    }
+  }
+  if(a.capColor){cx.fillStyle=a.capColor;sr(-5,-28,10,4);cx.fillStyle='#ec4899';sr(-5,-28,10,2);}
+  cx.fillStyle=a.cloth;sr(-10,-8,3,9);sr(7,-8,3,9);
+  cx.fillStyle=a.skin;
+  cx.beginPath();cx.ellipse(sx-8.5*sc,sy+1.5*sc,2*sc,1.8*sc,0,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(sx+8.5*sc,sy+1.5*sc,2*sc,1.8*sc,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.skin;sr(-1.5,-10,3,3);
+  cx.fillStyle=a.skin;cx.beginPath();cx.ellipse(sx,sy-15*sc,5*sc,6*sc,0,0,Math.PI*2);cx.fill();
+  cx.save();cx.scale(sc,sc);cx.translate(sx*(1/sc-1),sy*(1/sc-1));
+  drawHair(sx,sy-3,a);cx.restore();
+  cx.fillStyle='#fff';
+  cx.beginPath();cx.ellipse(sx-2.5*sc,sy-16*sc,1.8*sc,1.8*sc,0,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(sx+2.5*sc,sy-16*sc,1.8*sc,1.8*sc,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.eyeColor;
+  cx.beginPath();cx.arc(sx-2.5*sc,sy-16*sc,1.1*sc,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.arc(sx+2.5*sc,sy-16*sc,1.1*sc,0,Math.PI*2);cx.fill();
+  cx.fillStyle='#000';
+  cx.beginPath();cx.arc(sx-2.5*sc,sy-16*sc,0.55*sc,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.arc(sx+2.5*sc,sy-16*sc,0.55*sc,0,Math.PI*2);cx.fill();
+  // Expression
+  cx.strokeStyle=shade(a.skin,-40);cx.lineWidth=1;cx.beginPath();
+  if(fatigue<35) cx.arc(sx,sy-10*sc,2.2*sc,0.15*Math.PI,0.85*Math.PI);
+  else if(fatigue<65){cx.moveTo(sx-2*sc,sy-10*sc);cx.lineTo(sx+2*sc,sy-10*sc);}
+  else cx.arc(sx,sy-9*sc,2*sc,Math.PI*1.15,Math.PI*1.85);
+  cx.stroke();
+  if(a.glasses){
+    cx.strokeStyle='rgba(180,180,180,0.9)';cx.lineWidth=0.9;
+    cx.strokeRect(sx-5.5*sc,sy-18.5*sc,4*sc,3.2*sc);
+    cx.strokeRect(sx+1.5*sc,sy-18.5*sc,4*sc,3.2*sc);
+    cx.beginPath();cx.moveTo(sx-1.5*sc,sy-16.9*sc);cx.lineTo(sx+1.5*sc,sy-16.9*sc);cx.stroke();
+  }
+  if(a.beard){
+    cx.fillStyle=shade(a.hair,-10);cx.globalAlpha=0.7;
+    cx.beginPath();cx.ellipse(sx,sy-10*sc,3.5*sc,2.2*sc,0,0,Math.PI);cx.fill();
+    cx.globalAlpha=1;
+  }
+  // Status icon
+  if(st.resting){cx.font=`${11*sc}px serif`;cx.textAlign='center';cx.fillText('💤',sx,sy-32*sc);cx.textAlign='left';}
+  else if(fatigue>85){cx.font=`${10*sc}px serif`;cx.textAlign='center';cx.fillText('😵',sx,sy-32*sc);cx.textAlign='left';}
+  else if(fatigue>60){cx.font=`${9*sc}px serif`;cx.textAlign='center';cx.fillText('😓',sx,sy-30*sc);cx.textAlign='left';}
+  // Show name above
+  if(st.name){
+    cx.font=`${8*sc}px sans-serif`;cx.fillStyle='rgba(200,220,255,0.85)';cx.textAlign='center';
+    cx.fillText(st.name,sx,sy-34*sc);cx.textAlign='left';
+  }
+}
+
+function drawStaffInRoom(rm){
+  const roomStaff=G.staff.filter(s=>s.roomId===rm.id&&s.type!=='janitor');
+  if(roomStaff.length===0) return;
+  const rx=rm.c*T,ry=rm.r*T,rw=rm.w*T,rh=rm.h*T;
+  cx.save();cx.beginPath();cx.rect(rx+2,ry+20,rw-4,rh-22);cx.clip();
+  roomStaff.forEach((st,idx)=>{
+    let sx,sy;
+    switch(rm.type){
+      case 'reception':   sx=rx+rw*(0.3+idx*0.3);sy=ry+rh*0.52;break;
+      case 'gp':          sx=rx+rw*0.28;sy=ry+rh*0.62;break;
+      case 'pharmacy':    sx=rx+rw*0.55;sy=ry+rh*0.6;break;
+      case 'psychiatric': sx=rx+rw*0.72;sy=ry+rh*0.58;break;
+      case 'ward':        sx=rx+rw*(0.15+idx*0.28);sy=ry+rh*0.75;break;
+      case 'xray':        sx=rx+rw*0.65;sy=ry+rh*0.62;break;
+      case 'surgery':     sx=rx+rw*(0.25+idx*0.28);sy=ry+rh*0.62;break;
+      case 'research':    sx=rx+rw*0.5;sy=ry+rh*0.62;break;
+      case 'breakroom':   sx=rx+rw*(0.25+idx*0.25);sy=ry+rh*0.58;break;
+      default:            sx=rx+rw*0.5;sy=ry+rh*0.6;
+    }
+    drawStaffSprite(sx,sy,st);
+  });
+  cx.restore();
+}
+
+// ── Hair drawing ──
+function drawHair(x,y,a){
+  cx.fillStyle=a.hair;
+  switch(a.style){
+    case 'bald':cx.fillStyle='rgba(255,255,255,0.13)';cx.beginPath();cx.ellipse(x-1,y-22,2,1.5,-0.3,0,Math.PI*2);cx.fill();break;
+    case 'buzz':cx.beginPath();cx.ellipse(x,y-21,6.5,3,0,Math.PI,Math.PI*2);cx.fill();cx.fillRect(x-6,y-23,12,3);break;
+    case 'short_m':cx.beginPath();cx.ellipse(x,y-21,6.5,4.5,0,Math.PI,Math.PI*2);cx.fill();cx.fillRect(x-7,y-23,3,7);cx.fillRect(x+4,y-23,3,7);break;
+    case 'short_f':
+      cx.beginPath();cx.ellipse(x,y-21,7,5,0,Math.PI,Math.PI*2);cx.fill();
+      cx.fillRect(x-7,y-23,3,10);cx.fillRect(x+4,y-23,3,10);
+      cx.beginPath();cx.arc(x-5,y-13,2,0,Math.PI);cx.fill();
+      cx.beginPath();cx.arc(x+5,y-13,2,0,Math.PI);cx.fill();break;
+    case 'long':
+      cx.beginPath();cx.ellipse(x,y-21,7,5,0,Math.PI,Math.PI*2);cx.fill();
+      cx.fillRect(x-7,y-23,3,19);cx.fillRect(x+4,y-23,3,19);
+      cx.beginPath();cx.moveTo(x-7,y-5);cx.lineTo(x+7,y-5);cx.lineTo(x+6,y+7);cx.lineTo(x-6,y+7);cx.fill();break;
+    case 'curly':
+      [[-5,-26],[0,-28],[5,-26],[-6,-23],[6,-23],[-3,-24],[3,-24]].forEach(([dx,dy])=>{
+        cx.beginPath();cx.arc(x+dx,y+dy,3.5,0,Math.PI*2);cx.fill();
+      });break;
+    case 'mohawk':
+      cx.fillStyle=shade(a.skin,-10);cx.fillRect(x-7,y-25,3,9);cx.fillRect(x+4,y-25,3,9);
+      cx.fillStyle=a.hair;cx.fillRect(x-2,y-31,4,14);
+      cx.beginPath();cx.moveTo(x-2,y-31);cx.lineTo(x,y-36);cx.lineTo(x+2,y-31);cx.fill();break;
+    case 'ponytail':
+      cx.beginPath();cx.ellipse(x,y-21,7,5,0,Math.PI,Math.PI*2);cx.fill();
+      cx.fillRect(x-7,y-23,3,5);cx.fillRect(x+4,y-23,3,5);
+      cx.beginPath();cx.moveTo(x+4,y-22);cx.quadraticCurveTo(x+13,y-14,x+10,y+1);
+      cx.lineTo(x+7,y+1);cx.quadraticCurveTo(x+10,y-12,x+5,y-18);cx.fill();break;
+    case 'afro':
+      cx.beginPath();cx.arc(x,y-21,11,0,Math.PI*2);cx.fill();
+      cx.fillStyle=shade(a.hair,-25);cx.beginPath();cx.arc(x,y-21,7,0,Math.PI*2);cx.fill();
+      cx.fillStyle=a.hair;
+      cx.beginPath();cx.arc(x-7,y-18,4,0,Math.PI*2);cx.fill();
+      cx.beginPath();cx.arc(x+7,y-18,4,0,Math.PI*2);cx.fill();break;
+    case 'side_part':
+      cx.beginPath();cx.ellipse(x,y-21,7,5,0,Math.PI,Math.PI*2);cx.fill();
+      cx.fillRect(x-7,y-23,14,5);cx.fillStyle=a.skin;cx.fillRect(x-1,y-27,1,6);
+      cx.fillStyle=a.hair;cx.fillRect(x-7,y-23,3,12);cx.fillRect(x+4,y-23,3,6);break;
+  }
+}
+
+// ── Full patient body ──
+function drawClothing(x,y,a){
+  cx.fillStyle=a.cloth;
+  switch(a.outfit){
+    case 'shirt':
+      cx.fillRect(x-7,y-10,14,13);
+      cx.fillStyle='rgba(255,255,255,0.35)';
+      cx.beginPath();cx.moveTo(x-2,y-10);cx.lineTo(x,y-6);cx.lineTo(x+2,y-10);cx.fill();
+      break;
+    case 'dress':
+      cx.beginPath();cx.moveTo(x-6,y-10);cx.lineTo(x+6,y-10);cx.lineTo(x+11,y+8);cx.lineTo(x-11,y+8);cx.closePath();cx.fill();
+      break;
+    case 'suit':
+      cx.fillStyle=shade(a.cloth,-50);cx.fillRect(x-7,y-10,14,13);
+      cx.fillStyle='#fff';cx.fillRect(x-2,y-10,4,12);
+      cx.fillStyle=pick(CLOTH_COLORS);
+      cx.beginPath();cx.moveTo(x-1,y-9);cx.lineTo(x+1,y-9);cx.lineTo(x+2,y+2);cx.lineTo(x-2,y+2);cx.closePath();cx.fill();
+      break;
+    case 'hoodie':
+      cx.fillRect(x-8,y-10,16,13);
+      cx.fillStyle=shade(a.cloth,-15);cx.fillRect(x-8,y-10,16,4);
+      break;
+    default:
+      cx.fillRect(x-7,y-10,14,13);
+  }
+}
+
+function drawPerson(p){
+  if(!p.appearance) p.appearance=mkAppearance();
+  if(p.lyingDown){drawLyingPatient(p);return;}
+  const bob=Math.sin(p.anim)*(p.state==='walk'?1.8:0.4);
+  const x=Math.round(p.x),y=Math.round(p.y+bob);
+  const a=p.appearance;
+  const pat=p.patience/p.maxPat;
+  const swing=p.state==='walk'?Math.sin(p.anim)*4:0;
+  cx.fillStyle='rgba(0,0,0,0.18)';cx.beginPath();cx.ellipse(x,y+13,9,2.5,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.shoes;
+  cx.beginPath();cx.ellipse(x-5,y+13,5,2,0.15,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(x+5,y+13,5,2,-0.15,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.pants;cx.fillRect(x-7,y+3,5,11);cx.fillRect(x+2,y+3,5,11);
+  drawClothing(x,y,a);
+  cx.fillStyle=a.cloth;cx.fillRect(x-11,y-9+swing,4,10);cx.fillRect(x+7,y-9-swing,4,10);
+  cx.fillStyle=a.skin;
+  cx.beginPath();cx.ellipse(x-9,y+2+swing,2.5,2,0,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(x+9,y+2-swing,2.5,2,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.skin;cx.fillRect(x-2,y-12,4,4);
+  cx.fillStyle=a.skin;cx.beginPath();cx.ellipse(x,y-18,6,7,0,0,Math.PI*2);cx.fill();
+  if(a.blush){
+    cx.fillStyle='rgba(255,100,100,0.22)';
+    cx.beginPath();cx.ellipse(x-4,y-15,2.5,1.5,0,0,Math.PI*2);cx.fill();
+    cx.beginPath();cx.ellipse(x+4,y-15,2.5,1.5,0,0,Math.PI*2);cx.fill();
+  }
+  drawHair(x,y,a);
+  cx.fillStyle='#fff';
+  cx.beginPath();cx.ellipse(x-3,y-19,2,2,0,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(x+3,y-19,2,2,0,0,Math.PI*2);cx.fill();
+  cx.fillStyle=a.eyeColor;
+  cx.beginPath();cx.arc(x-3,y-19,1.2,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.arc(x+3,y-19,1.2,0,Math.PI*2);cx.fill();
+  cx.fillStyle='#000';
+  cx.beginPath();cx.arc(x-3,y-19,0.6,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.arc(x+3,y-19,0.6,0,Math.PI*2);cx.fill();
+  cx.strokeStyle=shade(a.skin,-40);cx.lineWidth=1.2;cx.beginPath();
+  if(pat>0.55) cx.arc(x,y-13,2.5,0.12*Math.PI,0.88*Math.PI);
+  else if(pat<0.28) cx.arc(x,y-11,2.5,Math.PI*1.12,Math.PI*1.88);
+  else{cx.moveTo(x-2.5,y-13);cx.lineTo(x+2.5,y-13);}
+  cx.stroke();
+  if(a.glasses){
+    cx.strokeStyle='rgba(190,190,190,0.9)';cx.lineWidth=1;
+    cx.strokeRect(x-7,y-22,5,4);cx.strokeRect(x+2,y-22,5,4);
+    cx.beginPath();cx.moveTo(x-2,y-20);cx.lineTo(x+2,y-20);cx.stroke();
+  }
+  if(a.beard){
+    cx.fillStyle=shade(a.hair,-10);cx.globalAlpha=0.72;
+    cx.beginPath();cx.ellipse(x,y-12,4.5,3,0,0,Math.PI);cx.fill();
+    cx.globalAlpha=1;
+  }
+  if(p.emergency){
+    cx.fillStyle='#ffd700';cx.beginPath();cx.arc(x+9,y-28,6,0,Math.PI*2);cx.fill();
+    cx.fillStyle='#000';cx.font='bold 7px sans-serif';
+    cx.textAlign='center';cx.fillText('急',x+9,y-25);cx.textAlign='left';
+  }
+  cx.font='11px serif';cx.textAlign='center';cx.fillText(p.disease.icon,x,y-35);cx.textAlign='left';
+  const bw=22,bh=3;
+  cx.fillStyle='rgba(0,0,0,0.5)';cx.fillRect(x-bw/2-1,y-43,bw+2,bh+2);
+  cx.fillStyle='#222';cx.fillRect(x-bw/2,y-42,bw,bh);
+  cx.fillStyle=pat>0.5?'#4ade80':pat>0.28?'#ffd700':'#ef4444';
+  cx.fillRect(x-bw/2,y-42,bw*Math.max(0,pat),bh);
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAW MAIN
+// ══════════════════════════════════════════════════════════
+function draw(){
+  const W=cv.width,H=cv.height;
+  cx.clearRect(0,0,W,H);
+
+  if(G.blackout){
+    cx.fillStyle='#000';cx.fillRect(0,0,W,H);
+    cx.fillStyle='#f59e0b';cx.font='bold 28px sans-serif';
+    cx.textAlign='center';cx.fillText('⚡ 停电！',W/2,H/2);cx.textAlign='left';
+    return;
+  }
+
+  // Apply camera transform
+  cx.save();
+  cx.scale(CAM.scale,CAM.scale);
+  cx.translate(-CAM.x,-CAM.y);
+
+  // Floor base
+  cx.fillStyle='#080e18';cx.fillRect(0,0,COLS*T,ROWS*T);
+  // Corridor tiles — polished hospital floor look
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      if(G.grid[r][c]===0){
+        const even=(c+r)%2===0;
+        cx.fillStyle=even?'#0d1a2a':'#0c1828';
+        cx.fillRect(c*T,r*T,T,T);
+        // Grout lines
+        cx.strokeStyle='#07111d';cx.lineWidth=0.8;
+        cx.strokeRect(c*T+0.5,r*T+0.5,T-1,T-1);
+        // Subtle gloss highlight top-left corner of tile
+        if(even){
+          cx.fillStyle='rgba(255,255,255,0.025)';
+          cx.fillRect(c*T+1,r*T+1,T*0.45,T*0.45);
+        }
+      }
+    }
+  }
+
+  // Entrance marker
+  const entX=1.5,entY1=T*2,entY2=(ROWS-2)*T;
+  // Glow strip
+  const entGrad=cx.createLinearGradient(entX,entY1,entX+10,entY1);
+  entGrad.addColorStop(0,'rgba(34,197,94,0.4)');entGrad.addColorStop(1,'rgba(34,197,94,0)');
+  cx.fillStyle=entGrad;cx.fillRect(entX,entY1,12,entY2-entY1);
+  cx.strokeStyle='#22c55e';cx.lineWidth=2;cx.setLineDash([6,4]);
+  cx.beginPath();cx.moveTo(entX,entY1);cx.lineTo(entX,entY2);cx.stroke();
+  cx.setLineDash([]);
+  cx.save();cx.translate(entX+10,ROWS*T/2);cx.rotate(-Math.PI/2);
+  cx.fillStyle='#22c55e';cx.font='bold 10px Segoe UI,sans-serif';
+  cx.textAlign='center';cx.fillText('🚪 入口',0,0);cx.textAlign='left';cx.restore();
+
+  // Dirts (under furniture)
+  G.dirts.forEach(d=>{
+    if(isOpenTile(d.x,d.y)) drawDirt(d);
+  });
+
+  // Corridor objects
+  CORRIDOR_OBJS.forEach(obj=>{
+    const tc=Math.floor(obj.x/T),tr=Math.floor(obj.y/T);
+    if(tr>=0&&tr<ROWS&&tc>=0&&tc<COLS&&G.grid[tr][tc]===0) drawCorridorObj(obj);
+  });
+
+  // Build preview
+  if(G.mode&&G.mx>=0&&G.my>=0){
+    const d=RDEFS[G.mode];
+    const ok=canPlace(G.mx,G.my,d.w,d.h);
+    cx.fillStyle=ok?'rgba(74,222,128,0.15)':'rgba(239,68,68,0.15)';
+    cx.fillRect(G.mx*T,G.my*T,d.w*T,d.h*T);
+    cx.strokeStyle=ok?'#4ade80':'#ef4444';cx.lineWidth=2;
+    cx.strokeRect(G.mx*T+1,G.my*T+1,d.w*T-2,d.h*T-2);
+    cx.fillStyle=ok?'#4ade80':'#ef4444';cx.font='11px sans-serif';
+    cx.fillText(d.icon+' '+d.name+' ($'+d.cost.toLocaleString()+')',G.mx*T+4,G.my*T+14);
+  }
+
+  // Staff assignment mode: highlight hovered room (in world/camera space)
+  if(G.selectedStaffId&&!G.mode){
+    const sel=G.staff.find(s=>s.id===G.selectedStaffId);
+    if(sel&&G.mx>=0&&G.my>=0){
+      const hovId=G.grid[G.my]?.[G.mx]||0;
+      if(hovId){
+        const hovRm=G.rooms.find(r=>r.id===hovId);
+        if(hovRm){
+          const def=RDEFS[hovRm.type];
+          const canAssign=def.need===sel.type&&hovRm.staffIds.length<def.maxStaff;
+          cx.strokeStyle=canAssign?'#a855f7':'#ef4444';
+          cx.lineWidth=3; cx.setLineDash([6,3]);
+          cx.strokeRect(hovRm.c*T+2,hovRm.r*T+2,hovRm.w*T-4,hovRm.h*T-4);
+          cx.setLineDash([]);
+        }
+      }
+    }
+  }
+
+  // Rooms
+  G.rooms.forEach(rm=>drawRoom(rm));
+
+  // Standing patients
+  G.patients.forEach(p=>{if(!p.lyingDown) drawPerson(p);});
+  // Lying patients
+  G.patients.forEach(p=>{if(p.lyingDown) drawPerson(p);});
+
+  // Roaming janitors
+  G.staff.filter(s=>s.type==='janitor').forEach(st=>{
+    if(st.wx!==undefined) drawStaffSprite(st.wx,st.wy,st);
+    // Show working indicator
+    if(st.jstate==='working'){
+      cx.font='12px serif';cx.textAlign='center';
+      cx.fillText('🧹',st.wx,(st.wy||0)-36);cx.textAlign='left';
+    }
+  });
+
+  // Ghosts
+  G.ghosts.forEach(g=>drawGhost(g));
+
+  // Particles
+  G.particles=G.particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life-=0.03;
+    cx.globalAlpha=p.life;cx.fillStyle=p.color;
+    cx.beginPath();cx.arc(p.x,p.y,3,0,Math.PI*2);cx.fill();
+    cx.globalAlpha=1;return p.life>0;
+  });
+
+  // Floats
+  G.floats=G.floats.filter(f=>{
+    f.y+=f.vy; if(f.vx) f.x+=f.vx; f.life-=f.isHeart?0.016:0.02;
+    cx.globalAlpha=Math.min(1,f.life*1.5);
+    cx.fillStyle=f.color;
+    cx.font=f.isHeart?'bold 16px serif':'bold 13px sans-serif';
+    cx.textAlign='center';cx.fillText(f.text,f.x,f.y);cx.textAlign='left';
+    cx.globalAlpha=1;return f.life>0;
+  });
+
+  cx.restore(); // end camera
+
+  // Staff assignment hint bar (screen space, always on top)
+  if(G.selectedStaffId&&!G.mode){
+    const sel=G.staff.find(s=>s.id===G.selectedStaffId);
+    if(sel){
+      cx.fillStyle='rgba(120,40,200,0.88)';
+      cx.fillRect(0,cv.height-30,cv.width,30);
+      cx.fillStyle='#fff'; cx.font='bold 13px sans-serif'; cx.textAlign='center';
+      cx.fillText(`🎯 已选中：${sel.name}（${SNEED[sel.type]}）— 点击目标房间分配，右键取消`,cv.width/2,cv.height-10);
+      cx.textAlign='left';
+    }
+  }
+
+  // Camera info
+  document.getElementById('cam-info').textContent=
+    `缩放 ${Math.round(CAM.scale*100)}% | 滚轮缩放 拖拽移动`;
+}
+
+// ══════════════════════════════════════════════════════════
+// GAME LOOP
+// ══════════════════════════════════════════════════════════
+const PAT_IV=280, SAL_IV=2200, EVT_IV=4000, DAY_IV=73;
+let last=0;
+
+function loop(ts){
+  if(!last) last=ts;
+  const raw=Math.min((ts-last)/16,4);last=ts;
+  const dt=raw*G.speed;
+
+  if(!G.over&&!pendingEvent&&!_paused){
+    G.tick+=dt;G.patTimer+=dt;G.salaryTimer+=dt;G.eventTimer+=dt;G.dayTimer+=dt;G.vendorTimer+=dt;
+    G.dirtTimer+=dt;G.binTimer+=dt;G.repDirtTimer+=dt;
+
+    // Day
+    if(G.dayTimer>=DAY_IV){
+      G.dayTimer=0;G.day++;
+      if(G.day>30){G.day=1;G.month++;}
+      if(G.month>12){G.month=1;G.year++;}
+      document.getElementById('h-time').textContent=`第${G.year}年${MONTHS[G.month-1]}月${G.day}日`;
+    }
+
+    const totalMonths=(G.year-1)*12+G.month;
+    const diffMult=1+totalMonths*0.06;
+    G._diff=diffMult;
+
+    // Spawn patients
+    const hasRec=G.rooms.some(r=>r.type==='reception'&&r.staffIds.length>0);
+    const iv=PAT_IV/(G.patMult||1)/(G.rep/50+0.5)/Math.min(diffMult,4);
+    if(hasRec&&G.patTimer>=iv&&G.patients.length<75){G.patTimer=0;spawnPatient(diffMult);}
+    else if(G.patients.length>=75) G.patTimer=Math.min(G.patTimer,iv*0.8); // slow timer when at cap
+
+    // Vending income
+    const vendingCount=CORRIDOR_OBJS.filter(o=>{
+      const tc=Math.floor(o.x/T),tr=Math.floor(o.y/T);
+      return o.type==='vending'&&tr>=0&&tr<ROWS&&tc>=0&&tc<COLS&&G.grid[tr][tc]===0;
+    }).length;
+    if(vendingCount>0&&G.vendorTimer>=800){
+      G.vendorTimer=0;const income=vendingCount*30;G.money+=income;
+      spawnFloat(COLS*T*0.6,ROWS*T*0.5,`+$${income} 自动贩卖机`,'#ffd700');
+    }
+
+    // Spawn random dirt periodically
+    if(G.dirtTimer>=600){G.dirtTimer=0;if(Math.random()<0.7) spawnRandomDirt();}
+
+    // Fill trash bins over time
+    if(G.binTimer>=150){
+      G.binTimer=0;
+      CORRIDOR_OBJS.filter(o=>o.type==='bin').forEach(o=>{
+        o.fill=Math.min(100,o.fill+1);
+        // Full bin overflows dirt
+        if(o.fill>=100&&Math.random()<0.3) spawnDirt(o.x,o.y);
+      });
+    }
+
+    // Reputation penalty for dirty hospital
+    if(G.dirts.length>20&&G.repDirtTimer>=400){
+      G.repDirtTimer=0;G.rep=Math.max(0,G.rep-1);
+      if(G.dirts.length>35) notify('🤮 医院太脏了！声誉持续下降！需要清洁工！','r','dirty_warn',8000);
+    }
+
+    // Difficulty notifications
+    if(!G._lastDiffNotify||G._lastDiffNotify<totalMonths){
+      if(totalMonths===3) notify('📈 第3个月：病人开始增多！','y');
+      if(totalMonths===6) notify('⚡ 第6个月：更多急诊！','r');
+      if(totalMonths===12) notify('🔥 第1年过去！医院压力倍增！','r');
+      G._lastDiffNotify=totalMonths;
+    }
+
+    // Tick arcade animations
+    tickArcades(dt);
+
+    // Tick ghosts
+    G.ghosts.forEach(g=>tickGhost(g,dt));
+
+    // Tick patients
+    G.patients.forEach(p=>tickP(p,dt));
+
+    // Tick staff
+    const breakroom=G.rooms.find(r=>r.type==='breakroom');
+    G.staff.forEach(st=>{
+      st.anim=(st.anim||0)+dt*0.04;
+      if(st.type==='janitor'){tickJanitor(st,dt);return;}
+      if(st.resting){
+        st.fatigue=Math.max(0,st.fatigue-dt*0.06);
+        if(st.fatigue<15){
+          st.resting=false;
+          if(st.prevRoomId){
+            const prevRm=G.rooms.find(r=>r.id===st.prevRoomId);
+            if(prevRm&&prevRm.staffIds.length<RDEFS[prevRm.type].maxStaff){
+              prevRm.staffIds.push(st.id);st.roomId=st.prevRoomId;
+            } else {st.roomId=null;}
+            st.prevRoomId=null;
+          }
+          notify(`✅ ${st.name}休息完毕，返回岗位！`,'g');
+        }
+      } else {
+        const rm=G.rooms.find(r=>r.id===st.roomId);
+        if(rm&&(rm.busy||(rm.type==='ward'&&rm.slots.length>0))){
+          st.fatigue=Math.min(100,st.fatigue+dt*0.04*(1+st.fatigue/200));
+        } else {
+          st.fatigue=Math.max(0,st.fatigue-dt*0.008);
+        }
+        if(st.fatigue>=95&&!st._warnedEx){
+          st._warnedEx=true;notify(`😵 ${st.name}精疲力竭！`,'r');
+        }
+        if(st.fatigue<80) st._warnedEx=false;
+        if(st.fatigue>=80&&breakroom&&!st.resting&&st.roomId!==null){
+          const oldRm=G.rooms.find(r=>r.id===st.roomId);
+          if(oldRm){
+            oldRm.staffIds=oldRm.staffIds.filter(id=>id!==st.id);
+            // 如果该房间已无员工，把排队病人转移到同类其他房间
+            if(oldRm.staffIds.length===0) reassignPatients(oldRm);
+          }
+          st.prevRoomId=st.roomId;st.resting=true;st.roomId=breakroom.id;
+          notify(`😓 ${st.name}去休息室...`,'y',`rest_${st.id}`,6000);refreshList();
+        }
+      }
+    });
+
+    G._assignTimer+=dt;
+    if(G._assignTimer>300){G._assignTimer=0;autoAssignStaff();}
+    G._busySanitizeTimer+=dt;
+    if(G._busySanitizeTimer>60){G._busySanitizeTimer=0;sanitizeBusy();} // run every ~1s
+    G._rebalanceTimer+=dt;
+    if(G._rebalanceTimer>60){G._rebalanceTimer=0;rebalanceQueues();}
+
+    if(G.salaryTimer>=SAL_IV){
+      G.salaryTimer=0;
+      const tot=G.staff.reduce((s,st)=>s+SALARY[st.type],0);
+      if(tot>0){G.money-=tot;spawnFloat(COLS*T/2,80,'-$'+tot.toLocaleString()+' 月薪','#f59e0b');}
+      // Loan repayments
+      let loanPay=0;
+      G.loans=G.loans.filter(l=>{
+        if(l.remaining<=0) return false;
+        loanPay+=l.monthly;l.remaining--;
+        return l.remaining>0;
+      });
+      if(loanPay>0){
+        G.money-=loanPay;
+        spawnFloat(COLS*T/2,100,'-$'+loanPay.toLocaleString()+' 还贷','#f87171');
+        if(G.loans.length===0) notify('✅ 贷款全部还清！','g');
+      }
+      notify(`💰 ${MONTHS[G.month-1]}月工资$${tot.toLocaleString()}${loanPay?` 还贷$${loanPay}`:''}`,'y');
+      updateLoanHUD();
+    }
+
+    if(G.eventTimer>=EVT_IV&&Math.random()<0.003*dt){G.eventTimer=0;triggerEvent();}
+
+    // Bankruptcy warning popup (triggers once when money drops below 3000)
+    if(G.money<3000&&G.money>-5000&&!G._loanWarnShown&&!G.over&&G.loans.length<3){
+      G._loanWarnShown=true;
+      openLoan(true);
+    }
+    // Reset warn flag when money recovers above 8000
+    if(G.money>=8000&&G._loanWarnShown) G._loanWarnShown=false;
+
+    if(G.money<-5000&&!G.over){
+      G.over=true;
+      // Save to leaderboard
+      const score={cured:G.cured,rep:G.rep,year:G.year,month:G.month,date:new Date().toLocaleDateString('zh-CN')};
+      let lb=JSON.parse(localStorage.getItem('th_leaderboard')||'[]');
+      lb.push(score);
+      lb.sort((a,b)=>b.cured-a.cured||b.rep-a.rep);
+      lb=lb.slice(0,10);
+      localStorage.setItem('th_leaderboard',JSON.stringify(lb));
+      // Display
+      document.getElementById('over-stat1').textContent=`治愈了 ${G.cured} 位病人`;
+      document.getElementById('over-stat2').textContent=`最终声誉：${G.rep} | 坚持了 ${G.year}年${G.month}月`;
+      const lbEl=document.getElementById('over-lb');
+      lbEl.innerHTML='<b style="color:#fbbf24">🏆 历史排行榜</b><br>'+
+        lb.map((e,i)=>`<span style="color:${i===0?'#fbbf24':i===1?'#aaa':i===2?'#cd7f32':'#ccc'}">`+
+          `${i+1}. 治愈${e.cured}人 声誉${e.rep} ${e.year}年${e.month}月 ${e.date}</span>`).join('<br>');
+      document.getElementById('over').style.display='flex';
+    }
+
+    document.getElementById('h-money').textContent='$'+Math.max(0,G.money).toLocaleString();
+    document.getElementById('h-rep').textContent=G.rep;
+    document.getElementById('h-pat').textContent=G.patients.length;
+    document.getElementById('h-cure').textContent=G.cured;
+    document.getElementById('h-fail').textContent=G.failed||0;
+    document.getElementById('h-died').textContent=G.died||0;
+    checkGoal();
+
+    if(document.getElementById('tab-staff').classList.contains('active')) refreshStaffPanel();
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════════════════
+// STAFF PANEL
+// ══════════════════════════════════════════════════════════
+function locateStaff(id){
+  const st=G.staff.find(s=>s.id===id);
+  if(!st) return;
+  G.selectedStaffId=id;
+  let wx,wy;
+  if(st.type==='janitor'){
+    wx=st.wx; wy=st.wy;
+  } else if(st.roomId!==null){
+    const rm=G.rooms.find(r=>r.id===st.roomId);
+    if(rm){wx=rm.c*T+rm.w*T/2; wy=rm.r*T+rm.h*T/2;}
+  } else if(st.resting){
+    // 休息中：定位到休息室
+    const br=G.rooms.find(r=>r.type==='breakroom');
+    if(br){wx=br.c*T+br.w*T/2; wy=br.r*T+br.h*T/2;}
+  }
+  if(wx===undefined||wy===undefined){wx=COLS*T/2; wy=ROWS*T/2;}
+  // pan camera to center on this position
+  const W=cv.width,H=cv.height;
+  CAM.x=wx-W/2/CAM.scale; CAM.y=wy-H/2/CAM.scale;
+  clampCam();
+  refreshStaffPanel();
+}
+let _firePendingId=null;
+function openFirePop(id){
+  _firePendingId=id;
+  const st=G.staff.find(s=>s.id===id);
+  if(!st) return;
+  document.getElementById('fire-name').textContent=`确定解雇 ${st.name}（${SNEED[st.type]}）？`;
+  document.getElementById('fire-pop').style.display='block';
+}
+function confirmFire(){
+  document.getElementById('fire-pop').style.display='none';
+  const id=_firePendingId; _firePendingId=null;
+  const st=G.staff.find(s=>s.id===id);
+  if(!st) return;
+  if(st.roomId!==null){
+    const rm=G.rooms.find(r=>r.id===st.roomId);
+    if(rm){ rm.staffIds=rm.staffIds.filter(i=>i!==id); if(rm.staffIds.length===0) reassignPatients(rm); }
+  }
+  // Also remove from any room's staffIds in case of desync
+  G.rooms.forEach(rm=>{ rm.staffIds=rm.staffIds.filter(i=>i!==id); });
+  G.staff=G.staff.filter(s=>s.id!==id);
+  G.selectedStaffId=null;
+  notify(`👋 ${st.name} 已被解雇！`,'y');
+  refreshList(); refreshStaffPanel();
+}
+
+function assignStaffToRoom(staffId,roomId){
+  const st=G.staff.find(s=>s.id===staffId);
+  const rm=G.rooms.find(r=>r.id===roomId);
+  if(!st||!rm) return false;
+  const def=RDEFS[rm.type];
+  if(!def.need||def.need!==st.type){
+    notify(`❌ ${SNEED[st.type]}无法在${def.name}工作`,'r'); return false;
+  }
+  if(rm.staffIds.length>=def.maxStaff){
+    notify(`❌ ${def.name}已满员`,'r'); return false;
+  }
+  if(st.resting){notify('❌ 员工正在休息中','r');return false;}
+  // remove from old room
+  if(st.roomId!==null){
+    const old=G.rooms.find(r=>r.id===st.roomId);
+    if(old){
+      old.staffIds=old.staffIds.filter(id=>id!==staffId);
+      if(old.staffIds.length===0) reassignPatients(old);
+    }
+  }
+  rm.staffIds.push(staffId);
+  st.roomId=roomId;
+  notify(`✅ ${st.name}调岗至${def.name}`,'g');
+  refreshList(); refreshStaffPanel();
+  return true;
+}
+function refreshStaffPanel(){
+  const el=document.getElementById('staff-scroll');
+  if(!G.staff.length){el.innerHTML='<div style="color:#2a3f5a;padding:4px;font-size:11px;">尚未雇用员工</div>';return;}
+  // sort by type order
+  const sorted=[...G.staff].sort((a,b)=>{
+    const ai=STAFF_ORDER.indexOf(a.type); const bi=STAFF_ORDER.indexOf(b.type);
+    return (ai===-1?99:ai)-(bi===-1?99:bi);
+  });
+  let html=''; let lastType=null;
+  sorted.forEach(st=>{
+    if(st.type!==lastType){
+      const typeName=SNEED[st.type]||st.type;
+      html+=`<div style="padding:4px 8px 2px;font-size:10px;color:#4a7fa0;border-top:1px solid #0d2035;letter-spacing:1px;margin-top:${lastType?'4px':'0'}">${typeName.toUpperCase()}</div>`;
+      lastType=st.type;
+    }
+    const fat=Math.round(st.fatigue);
+    const fatColor=fat<40?'#4ade80':fat<70?'#ffd700':'#ef4444';
+    let loc;
+    if(st.type==='janitor'){
+      loc=st.resting?'💤 休息中':st.jstate==='working'?'🧹 清扫中':st.jstate==='going'?'🚶 前往中':'🚶 巡逻中';
+    } else {
+      const rm=G.rooms.find(r=>r.id===st.roomId);
+      loc=st.resting?'💤 休息室':rm?`${RDEFS[rm.type].icon}${RDEFS[rm.type].name}`:'无岗位';
+    }
+    const rowCls=st.resting?'resting':fat>70?'tired':'active';
+    const expr=fat<35?'😊':fat<65?'😐':fat<85?'😓':'😵';
+    const skill=st.skill||1.0;
+    const lv=Math.round((skill-1.0)*10);
+    const skillColor=skill<1.3?'#5a7fa0':skill<1.7?'#4ade80':'#ffd700';
+    const skillBar=Math.min(100,Math.round((skill-1.0)*100));
+    const typeName=SNEED[st.type]||st.type;
+    const isSel=G.selectedStaffId===st.id;
+    const selStyle=isSel?'border:1px solid #a855f7;background:#1d0b30;':'';
+    html+=`<div class="st-row ${rowCls}" style="cursor:pointer;${selStyle}" onclick="locateStaff(${st.id})" title="点击定位员工">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="st-name">${expr} ${st.name||typeName}</div>
+        <button onclick="event.stopPropagation();openFirePop(${st.id})" title="解雇"
+          style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:3px;
+          font-size:9px;padding:1px 5px;cursor:pointer;flex-shrink:0;">解雇</button>
+      </div>
+      <div class="st-role">${typeName} · ${loc}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span style="font-size:9px;color:${skillColor}">⭐LV${lv} 经验${st.exp||0}</span>
+        <span style="font-size:9px;color:#5a7fa0">体力${100-fat}%</span>
+      </div>
+      <div class="st-fat-bar" style="margin-top:2px;"><div class="st-fat-fill" style="width:${skillBar}%;background:${skillColor}"></div></div>
+      <div class="st-fat-bar" style="margin-top:2px;"><div class="st-fat-fill" style="width:${fat}%;background:${fatColor}"></div></div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════════════
+// NOTIFICATIONS & ROOM LIST
+// ══════════════════════════════════════════════════════════
+const nbox=document.getElementById('notifs');
+// Throttle key: same prefix won't show again within cooldownMs
+function notify(msg,type='r',throttleKey=null,cooldownMs=3000){
+  if(throttleKey){
+    const now=Date.now();
+    if(G._notifyThrottle&&G._notifyThrottle[throttleKey]&&now-G._notifyThrottle[throttleKey]<cooldownMs) return;
+    if(G._notifyThrottle) G._notifyThrottle[throttleKey]=now;
+  }
+  const el=document.createElement('div');
+  el.className='notif '+(type==='g'?'g':type==='y'?'y':type==='p'?'p':'');
+  el.textContent=msg;nbox.appendChild(el);
+  while(nbox.children.length>6) nbox.removeChild(nbox.firstChild);
+  setTimeout(()=>el.remove(),5000);
+}
+
+function refreshList(){
+  const el=document.getElementById('room-scroll');
+  if(!G.rooms.length){el.innerHTML='<div style="color:#2a3f5a;padding:4px;font-size:11px;">尚未建造任何房间</div>';return;}
+  el.innerHTML=G.rooms.map(rm=>{
+    const d=RDEFS[rm.type];
+    const ok=rm.staffIds.length>0||d.maxStaff===0;
+    const maxS=d.maxStaff;
+    const rmStaff=G.staff.filter(s=>s.roomId===rm.id);
+    const staffStr=d.maxStaff===0?'✓ 无需员工':
+      rm.staffIds.length>0?`✓ ${rm.staffIds.length}/${maxS}人 · 治愈${rm.totalTreated}`:`⚠ 需要${SNEED[d.need]}`;
+    return`<div class="ri ${ok?'ok':'warn'}">
+      <div class="ri-name">${d.icon} ${d.name}</div>
+      <div class="ri-sub">${staffStr} · 排队${rm.queue.length}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════
+const tip=document.getElementById('ttip');
+
+function updateTooltip(sx,sy){
+  const w=screenToWorld(sx,sy);
+  const p=G.patients.find(p=>Math.abs(p.x-w.x)<14&&Math.abs(p.y-w.y)<20);
+  if(p){
+    tip.style.display='block';tip.style.left=(sx+14)+'px';tip.style.top=(sy-20)+'px';
+    const pat=Math.round(p.patience/p.maxPat*100);
+    tip.innerHTML=`<b>${p.name}</b>${p.emergency?' 🚨急诊':''}<br>疾病：${p.disease.icon}${p.disease.name}<br>
+      耐心：${pat}% | 就诊费：$${p.disease.pay}<br>步骤：${p.step+1}/${p.disease.steps.length}`;
+    return;
+  }
+  const rm=G.rooms.find(r=>G.mx>=r.c&&G.mx<r.c+r.w&&G.my>=r.r&&G.my<r.r+r.h);
+  if(rm){
+    const d=RDEFS[rm.type];
+    const rmStaff=G.staff.filter(s=>s.roomId===rm.id);
+    tip.style.display='block';tip.style.left=(sx+14)+'px';tip.style.top=(sy-20)+'px';
+    tip.innerHTML=`<b>${d.icon} ${d.name}</b><br>员工：${rmStaff.length}/${d.maxStaff} 人<br>
+      状态：${rm.busy||(rm.slots?.length>0)?'🔄 诊治中':'✓ 空闲'}<br>
+      排队：${rm.queue.length} | 累计：${rm.totalTreated}`;
+    return;
+  }
+  // Janitor tooltip
+  const jan=G.staff.filter(s=>s.type==='janitor').find(s=>Math.abs((s.wx||0)-w.x)<14&&Math.abs((s.wy||0)-w.y)<20);
+  if(jan){
+    tip.style.display='block';tip.style.left=(sx+14)+'px';tip.style.top=(sy-20)+'px';
+    tip.innerHTML=`<b>🧹 ${jan.name}</b><br>状态：${jan.jstate}<br>疲劳：${Math.round(jan.fatigue)}%<br>经验：${jan.exp||0}`;
+    return;
+  }
+  tip.style.display='none';
+}
+
+// ══════════════════════════════════════════════════════════
+// MOUSE EVENTS (camera-aware)
+// ══════════════════════════════════════════════════════════
+const garea=document.getElementById('garea');
+
+cv.addEventListener('mousedown',e=>{
+  if(e.button!==0) return;
+  const rect=cv.getBoundingClientRect();
+  const sx=e.clientX-rect.left,sy=e.clientY-rect.top;
+  _drag={sx,sy,cx:CAM.x,cy:CAM.y};
+  _dragMoved=false;
+});
+
+cv.addEventListener('mousemove',e=>{
+  const rect=cv.getBoundingClientRect();
+  const sx=e.clientX-rect.left,sy=e.clientY-rect.top;
+  if(_drag){
+    const dx=sx-_drag.sx,dy=sy-_drag.sy;
+    if(!_dragMoved&&(Math.abs(dx)>3||Math.abs(dy)>3)) _dragMoved=true;
+    if(_dragMoved){
+      CAM.x=_drag.cx-dx/CAM.scale;
+      CAM.y=_drag.cy-dy/CAM.scale;
+      clampCam();
+      garea.classList.add('panning');
+    }
+  }
+  const w=screenToWorld(sx,sy);
+  G.mx=Math.floor(w.x/T);G.my=Math.floor(w.y/T);
+  if(!_dragMoved) updateTooltip(sx,sy);
+  else tip.style.display='none';
+});
+
+cv.addEventListener('mouseup',e=>{
+  if(e.button!==0){_drag=null;return;}
+  const rect=cv.getBoundingClientRect();
+  const sx=e.clientX-rect.left,sy=e.clientY-rect.top;
+  if(!_dragMoved&&!G.over){
+    const w=screenToWorld(sx,sy);
+    const wc=Math.floor(w.x/T),wr=Math.floor(w.y/T);
+    if(G.mode){
+      placeRoom(wc,wr);
+    } else if(G.selectedStaffId){
+      // Try to assign selected staff to clicked room
+      const clickedRoomId=G.grid[wr]?.[wc]||0;
+      if(clickedRoomId){
+        assignStaffToRoom(G.selectedStaffId,clickedRoomId);
+      }
+      G.selectedStaffId=null;
+      refreshStaffPanel();
+    }
+  }
+  _drag=null;_dragMoved=false;
+  garea.classList.remove('panning');
+});
+
+cv.addEventListener('mouseleave',()=>{
+  G.mx=-1;G.my=-1;tip.style.display='none';
+  _drag=null;_dragMoved=false;garea.classList.remove('panning');
+});
+
+cv.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  G.mode=null;G.selectedStaffId=null;
+  document.querySelectorAll('.sbtn[id^="b-"]').forEach(b=>b.classList.remove('active'));
+  refreshStaffPanel();
+});
+
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const rect=cv.getBoundingClientRect();
+  applyZoom(e.clientX-rect.left,e.clientY-rect.top,e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+
+// ══════════════════════════════════════════════════════════
+// LOAN SYSTEM
+// ══════════════════════════════════════════════════════════
+function closeLoanPop(){
+  document.getElementById('loan-pop').style.display='none';
+  document.getElementById('loan-pop-warning').style.display='none';
+  document.getElementById('loan-pop-title').textContent='🏦 医院银行贷款';
+  document.getElementById('loan-pop-cancel').style.display='';
+}
+function openLoan(emergency){
+  if(!emergency && G.loans.length>=3){notify('⚠️ 贷款太多了！先还完一些再借！','r');}
+  if(emergency){
+    document.getElementById('loan-pop-warning').style.display='block';
+    document.getElementById('loan-pop-warn-msg').textContent=
+      `账户余额仅剩 $${Math.max(0,G.money).toLocaleString()}，医院濒临倒闭！立即申请贷款救急！`;
+    document.getElementById('loan-pop-title').textContent='🚨 紧急贷款申请';
+    document.getElementById('loan-pop-cancel').style.display='';
+  }
+  // Render repay section
+  const sec=document.getElementById('loan-repay-section');
+  const list=document.getElementById('loan-repay-list');
+  if(G.loans.length>0){
+    sec.style.display='block';
+    list.innerHTML=G.loans.map((l,i)=>{
+      const total=l.monthly*l.remaining;
+      const discount=Math.floor(total*0.9);
+      const canAfford=G.money>=discount;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;
+        background:#0a1628;border-radius:5px;padding:6px 10px;margin-bottom:6px;font-size:11px;">
+        <div style="text-align:left;color:#87ceeb;">
+          月供 <b style="color:#fbbf24">$${l.monthly}</b> × 剩余 <b>${l.remaining}</b> 期<br>
+          <span style="color:#5a7fa0;">总欠款 $${total.toLocaleString()} → 9折 $${discount.toLocaleString()}</span>
+        </div>
+        <button onclick="repayLoan(${i})" style="
+          background:${canAfford?'#065f46':'#1f2937'};color:${canAfford?'#34d399':'#6b7280'};
+          border:1px solid ${canAfford?'#34d399':'#374151'};border-radius:4px;
+          padding:4px 10px;cursor:${canAfford?'pointer':'not-allowed'};font-size:10px;white-space:nowrap;">
+          ${canAfford?'💰 提前还清':'💸 余额不足'}
+        </button>
+      </div>`;
+    }).join('');
+  } else {
+    sec.style.display='none';
+  }
+  document.getElementById('loan-pop').style.display='block';
+}
+function takeLoan(amount,monthly,months){
+  document.getElementById('loan-pop').style.display='none';
+  document.getElementById('loan-pop-warning').style.display='none';
+  G._loanWarnShown=false; // reset so warning can trigger again if they fall low again
+  G.money+=amount;
+  G.loans.push({monthly,remaining:months});
+  notify(`🏦 贷款$${amount.toLocaleString()}到账！每月还$${monthly}，共${months}月`,'y');
+  spawnFloat(COLS*T/2,ROWS*T*0.3,`+$${amount.toLocaleString()} 贷款`,'#fbbf24');
+  updateLoanHUD();
+}
+// ══════════════════════════════════════════════════════════
+// SAVE / LOAD
+// ══════════════════════════════════════════════════════════
+const SAVE_KEY='theme_hospital_save';
+function saveGame(){
+  try{
+    const data={G, CORRIDOR_OBJS, CAM};
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    notify('💾 游戏已存档！','g');
+    spawnFloat(COLS*T/2, ROWS*T*0.4, '💾 已存档', '#34d399');
+  } catch(e){ notify('❌ 存档失败：'+e.message,'r'); }
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw){notify('📂 没有找到存档！','y');return;}
+    const data=JSON.parse(raw);
+    G=data.G;
+    CORRIDOR_OBJS=data.CORRIDOR_OBJS||[];
+    if(data.CAM) Object.assign(CAM, data.CAM);
+    pendingEvent=null;
+    _paused=false;
+    document.getElementById('pause-btn').textContent='⏸️ 暂停';
+    document.getElementById('pause-overlay').style.display='none';
+    document.getElementById('over').style.display='none';
+    document.getElementById('event-pop').style.display='none';
+    refreshList(); refreshStaffPanel(); updateGoalHUD(); updateLoanHUD();
+    notify('📂 读档成功！欢迎回来！','g');
+    spawnFloat(COLS*T/2, ROWS*T*0.4, '📂 读档成功', '#60a5fa');
+  } catch(e){ notify('❌ 读档失败：'+e.message,'r'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// REPAY LOAN
+// ══════════════════════════════════════════════════════════
+function repayLoan(idx){
+  const loan=G.loans[idx];
+  if(!loan) return;
+  const total=loan.monthly*loan.remaining;
+  const discount=Math.floor(total*0.9); // 9折提前还清
+  if(G.money<discount){notify(`💸 余额不足，需要$${discount.toLocaleString()}（9折）！`,'r');return;}
+  G.money-=discount;
+  G.loans.splice(idx,1);
+  notify(`✅ 贷款已提前还清！节省$${(total-discount).toLocaleString()}利息！`,'g');
+  spawnFloat(COLS*T/2,ROWS*T*0.35,`✅ 还清贷款 -$${discount.toLocaleString()}`,'#34d399');
+  updateLoanHUD();
+  openLoan(); // refresh popup
+}
+function openRepayPanel(){
+  if(!G.loans.length){notify('✅ 目前没有贷款！','g');return;}
+  openLoan();
+}
+
+function updateLoanHUD(){
+  const el=document.getElementById('h-loan');
+  if(!el) return;
+  const total=G.loans.reduce((s,l)=>s+l.monthly,0);
+  el.textContent=total>0?`贷款月供-$${total}`:'';
+}
+
+// ══════════════════════════════════════════════════════════
+// BACKGROUND MUSIC (Web Audio API)
+// ══════════════════════════════════════════════════════════
+let _audioCtx=null, _musicOn=false, _musicTimeout=null;
+
+// C major pentatonic: C D E G A, light hospital lobby feel
+const MELODY=[
+  [523.25,0.5],[587.33,0.5],[659.25,0.5],[783.99,0.5],
+  [880.00,0.5],[783.99,0.5],[659.25,0.5],[587.33,0.5],
+  [523.25,0.5],[659.25,0.5],[783.99,1.0],[659.25,0.5],
+  [587.33,0.5],[523.25,0.5],[440.00,0.5],[523.25,1.0],
+];
+const BASS=[
+  [130.81,1.0],[174.61,1.0],[196.00,1.0],[130.81,1.0],
+  [146.83,1.0],[174.61,1.0],[196.00,1.0],[130.81,1.0],
+];
+
+function initAudio(){
+  if(_audioCtx) return;
+  _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+}
+function playNote(freq,start,dur,vol=0.06,type='sine'){
+  if(!_audioCtx||!_musicOn) return;
+  const osc=_audioCtx.createOscillator();
+  const gain=_audioCtx.createGain();
+  const filter=_audioCtx.createBiquadFilter();
+  filter.type='lowpass';filter.frequency.value=1200;
+  osc.connect(filter);filter.connect(gain);gain.connect(_audioCtx.destination);
+  osc.type=type;osc.frequency.value=freq;
+  gain.gain.setValueAtTime(0,start);
+  gain.gain.linearRampToValueAtTime(vol,start+0.05);
+  gain.gain.linearRampToValueAtTime(0,start+dur-0.06);
+  osc.start(start);osc.stop(start+dur);
+}
+function scheduleMusicBar(){
+  if(!_audioCtx||!_musicOn) return;
+  const now=_audioCtx.currentTime;
+  const bpm=90, beat=60/bpm;
+  let t=now;
+  // Melody
+  MELODY.forEach(([freq,dur])=>{
+    playNote(freq,t,dur*beat*0.88,0.055,'sine');
+    t+=dur*beat;
+  });
+  // Bass (slower, triangle wave)
+  let tb=now;
+  BASS.forEach(([freq,dur])=>{
+    playNote(freq,tb,dur*beat*0.9,0.04,'triangle');
+    tb+=dur*beat;
+  });
+  // Chime accents
+  [0,4,8,12].forEach(i=>{
+    playNote(1046.5,now+i*beat,0.3,0.03,'sine');
+  });
+  const totalDur=MELODY.reduce((s,[,d])=>s+d,0)*beat*1000;
+  _musicTimeout=setTimeout(scheduleMusicBar,totalDur-100);
+}
+function toggleMusic(){
+  initAudio();
+  _musicOn=!_musicOn;
+  const btn=document.getElementById('music-btn');
+  if(_musicOn){
+    if(_audioCtx.state==='suspended') _audioCtx.resume();
+    scheduleMusicBar();
+    if(btn) btn.textContent='🔇 音乐';
+    notify('🎵 背景音乐已开启','p');
+  } else {
+    clearTimeout(_musicTimeout);
+    if(btn) btn.textContent='🎵 音乐';
+    notify('🔇 背景音乐已关闭','y');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// CONTROLS
+// ══════════════════════════════════════════════════════════
+function togglePause(){
+  _paused=!_paused;
+  document.getElementById('pause-btn').textContent=_paused?'▶️ 继续':'⏸️ 暂停';
+  document.getElementById('pause-overlay').style.display=_paused?'flex':'none';
+}
+function toggleSpeed(){
+  G.speed=G.speed===1?3:1;
+  document.getElementById('speed-btn').textContent=G.speed===1?'⏩ 加速':'▶️ 正常';
+}
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();togglePause();}
+  if(e.code==='Equal'||e.code==='NumpadAdd') zoomIn();
+  if(e.code==='Minus'||e.code==='NumpadSubtract') zoomOut();
+  if(e.code==='KeyR') resetCam();
+  if(e.code==='Escape'){G.mode=null;document.querySelectorAll('.sbtn[id^="b-"]').forEach(b=>b.classList.remove('active'));}
+});
+
+function restart(){
+  document.getElementById('over').style.display='none';
+  document.getElementById('event-pop').style.display='none';
+  pendingEvent=null;
+  _paused=false;document.getElementById('pause-btn').textContent='⏸️ 暂停';
+  document.getElementById('pause-overlay').style.display='none';
+  CORRIDOR_OBJS=[];resetCam();clearTimeout(_musicTimeout);_musicOn=false;
+  const mb=document.getElementById('music-btn');if(mb)mb.textContent='🎵 音乐';
+  G=mkState();refreshList();updateGoalHUD();updateLoanHUD();
+  notify('🏥 新医院开张！先建挂号台→雇接待员→建诊室！','g');
+}
+
+// ══════════════════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════════════════
+G=mkState();
+refreshList();
+updateGoalHUD();
+sanitizeStaffIds(); // clean up any ghost IDs on load
+notify('🏥 欢迎！建挂号台→雇两名接待员→建诊室→雇医生！','g');
+notify('💡 心理诊室须配精神科医生，全科诊室须配全科医生！','p');
+notify('🚽 建卫生间，🧹 雇清洁工，员工疲劳自动转移病人！','p');
+notify('👆 员工面板点击可定位员工，选中后点房间可调岗！','p');
+notify('👻 病人死亡会变幽灵游荡！清洁工会自动追逐并驱逐幽灵！','p');
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
